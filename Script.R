@@ -128,6 +128,11 @@ portfolio <- rbind(portfolio,data_IWSZ)
 
 
 portfolio$Country <- ifelse (portfolio$Country == "Stati Uniti d'America", "Stati Uniti", portfolio$Country)
+portfolio$Country <- ifelse (portfolio$Country == "Paesi Bassi (Olanda)", "Olanda", ifelse (portfolio$Country == "Paesi Bassi", "Olanda", portfolio$Country))
+portfolio$Country <- ifelse (portfolio$Country == "Repubblica di Corea (Corea del Sud)", "Corea", portfolio$Country)
+
+
+
 portfolio$Country <- as.factor(portfolio$Country)
 portfolio$Currency <- as.factor (portfolio$Currency)
 portfolio$Weight <- as.numeric (portfolio$Weight)
@@ -141,11 +146,26 @@ portfolio %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE)
 
+
+
 portfolio %>%
   group_by (Currency) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
   ggplot (aes (x = reorder (Currency, -total), y = total, fill = Currency)) +
   geom_bar(stat = "identity") +
-  theme_minimal()
+  geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), legend.position = "none")
+
+
+portfolio %>%
+  group_by (Country) %>%
+  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
+  arrange(desc(total), by_group = TRUE) %>%
+  ggplot (aes (x = reorder (Country, -total), y = total, fill = Country)) +
+  geom_bar(stat = "identity") +
+  geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
 
