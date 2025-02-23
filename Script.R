@@ -65,3 +65,35 @@ data_IWSZ <- read_xls(destfile, sheet = "Partecipazioni", col_names = TRUE, col_
 #####
 # E. CREATING AND FORMATTING THE DATAFRAME
 
+# portfolio is the dataframe where I store all the data
+portfolio <- "" # initialize the main dataframe
+
+
+#removing the unnecessary columns
+data_XDEW <- data_XDEW[-c(1,3,6,7,8,9)] 
+data_IUSN <- data_IUSN[-c(1,4,5,7,8,9,11)]
+data_EXUS <- data_EXUS[-c(1,3,6,7,8,9)]
+data_EIMI <- data_EIMI[c(2,3,6,10,12)]
+data_IWSZ <- data_IWSZ[c(2,3,6,10,12)]
+
+data_XDEW$ETF <- "XDEW"
+data_IUSN$ETF <- "IUSN"
+data_EXUS$ETF <- "EXUS"
+data_EIMI$ETF <- "EIMI"
+data_IWSZ$ETF <- "IWSZ"
+
+data_XDEW$PTF_W <- 0.25
+data_IUSN$PTF_W <- 0.10
+data_EXUS$PTF_W <- 0.37
+data_EIMI$PTF_W <- 0.15
+data_IWSZ$PTF_W <- 0.13
+
+
+
+
+
+#portfolio <-
+
+
+
+?rbind
