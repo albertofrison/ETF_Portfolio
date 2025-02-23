@@ -113,6 +113,9 @@ data_EXUS$Effective_Weight <- as.numeric(data_EXUS$PTF_Weight) * as.numeric(data
 data_EIMI$Effective_Weight <- as.numeric(data_EIMI$PTF_Weight) * as.numeric(data_EIMI$Weight)
 data_IWSZ$Effective_Weight <- as.numeric(data_IWSZ$PTF_Weight) * as.numeric(data_IWSZ$Weight)
 
+
+#####
+# Creation of the main dataframe
 portfolio <- ""
 
 columns <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "EffectiveWeight")
@@ -127,20 +130,86 @@ portfolio <- rbind(portfolio,data_EIMI)
 portfolio <- rbind(portfolio,data_IWSZ)
 
 
+
+#####
+# Formatting the Name of the Countries
 portfolio$Country <- ifelse (portfolio$Country == "Stati Uniti d'America", "Stati Uniti", portfolio$Country)
 portfolio$Country <- ifelse (portfolio$Country == "Paesi Bassi (Olanda)", "Olanda", ifelse (portfolio$Country == "Paesi Bassi", "Olanda", portfolio$Country))
 portfolio$Country <- ifelse (portfolio$Country == "Repubblica di Corea (Corea del Sud)", "Corea", portfolio$Country)
+portfolio$Country <- ifelse (portfolio$Country == "Regno Unito", "Regno unito", portfolio$Country)
 
 
+# Creating the MacroArea
 
+portfolio <- portfolio %>%
+  mutate (MacroArea = case_when(
+    Country == "Stati Uniti" ~ "USA",
+    Country == "Italia" ~ "Europe",
+    Country == "Francia" ~ "Europe",
+    Country == "Germania" ~ "Europe",
+    Country == "Irlanda" ~ "Europe",
+    Country == "Spagna" ~ "Europe",
+    Country == "Danimarca" ~ "Europe",
+    Country == "Finlandia" ~ "Europe",
+    Country == "Norvegia" ~ "Europe",
+    Country == "Belgio" ~ "Europe",
+    Country == "Lussemburgo" ~ "Europe",
+    Country == "Polonia" ~ "Europe",
+    Country == "Austria" ~ "Europe",
+    Country == "Portogallo" ~ "Europe",
+    Country == "Grecia" ~ "Europe",
+    Country == "Ungheria" ~ "Europe",
+    Country == "Olanda" ~ "Europe",
+    Country == "Svezia" ~ "Europe",
+    Country == "Repubblica Ceca" ~ "Europe",
+    Country == "Unione Europea" ~ "Europe",
+    Country == "Svizzera" ~ "Europe",
+    Country == "Regno Unito" ~ "Europe",
+    Country == "Russia" ~ "Europe",
+    Country == "Regno unito" ~ "Europe",
+    Country == "Giappone" ~ "Giappone",
+    Country == "Canada" ~ "Other Developed",
+    Country == "Australia" ~ "Other Developed",
+    Country == "Hong Kong" ~ "Other Developed",
+    Country == "Singapore" ~ "Other Developed",
+    Country == "Corea" ~ "Other Developed",
+    Country == "Nuova Zelanda" ~ "Other Developed",
+    Country == "Taiwan" ~ "Other Developed",
+    Country == "Israele" ~ "Other Developed",
+    Country == "Cina" ~ "Cina",
+    TRUE ~ "Developing"
+  )
+)
+
+
+# Formatting the Industry
+portfolio$Industry <- ifelse (portfolio$Industry == "Finanziari", "Finanza", portfolio$Industry)
+portfolio$Industry <- ifelse (portfolio$Industry == "Tecnologia dell'informazione", "IT", portfolio$Industry)
+portfolio$Industry <- ifelse (portfolio$Industry == "Servizi di comunicazione", "Comunicazione", portfolio$Industry)
+portfolio$Industry <- ifelse (portfolio$Industry == "Immobili", "Immobiliare", portfolio$Industry)
+portfolio$Industry <- ifelse (portfolio$Industry == "Prodotti industriali", "Industriali", portfolio$Industry)
+portfolio$Industry <- ifelse (portfolio$Industry == "Altro", "Liquidità e/o derivati", portfolio$Industry)
+portfolio$Industry <- ifelse (portfolio$Industry == "Beni di prima necessità", "Generi di largo consumo", portfolio$Industry)
+portfolio$Industry <- ifelse (portfolio$Industry == "Sanità", "Salute", portfolio$Industry)
+portfolio$Industry <- ifelse (portfolio$Industry == "Beni voluttuari", "Consumi Discrezionali", portfolio$Industry)
+portfolio$Industry <- ifelse (portfolio$Industry == "Imprese di servizi di pubblica utilità", "Utilities", portfolio$Industry)
+portfolio$Industry <- ifelse (portfolio$Industry == "Servizi di pubblica utilità", "Utilities", portfolio$Industry)
+
+# trasforming data into factors and numeric, where needed
 portfolio$Country <- as.factor(portfolio$Country)
 portfolio$Currency <- as.factor (portfolio$Currency)
 portfolio$Weight <- as.numeric (portfolio$Weight)
 portfolio$ETF <- as.factor(portfolio$ETF)
-  
+portfolio$Industry <- as.factor(portfolio$Industry)
+portfolio$MacroArea <- as.factor(portfolio$MacroArea)
+
+
 summary (portfolio)
 
 
+
+#####
+# Starting of the Analysis
 portfolio %>%
   group_by (Country) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
@@ -148,6 +217,9 @@ portfolio %>%
 
 
 
+
+#####
+# CURRENCY
 portfolio %>%
   group_by (Currency) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
@@ -159,6 +231,8 @@ portfolio %>%
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), legend.position = "none")
 
 
+#####
+# COUNTRY
 portfolio %>%
   group_by (Country) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
@@ -169,3 +243,45 @@ portfolio %>%
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
 
+
+#####
+# INDUSTRY
+portfolio %>%
+  group_by (Industry) %>%
+  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
+  arrange(desc(total), by_group = TRUE) %>%
+  ggplot (aes (x = reorder (Industry, -total), y = total, fill = Industry)) +
+  geom_bar(stat = "identity") +
+  geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
+
+#####
+# NANME - DO NOT USE
+portfolio %>%
+  group_by (Name) %>%
+  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
+  arrange(desc(total), by_group = TRUE) %>%
+  ggplot (aes (x = reorder (Name, -total), y = total, fill = Name)) +
+  geom_bar(stat = "identity") +
+  geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
+
+
+#####
+# MACRO AREA
+portfolio %>%
+  group_by (MacroArea) %>%
+  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
+  arrange(desc(total), by_group = TRUE) %>%
+  ggplot (aes (x = reorder (MacroArea, -total), y = total, fill = MacroArea)) +
+  geom_bar(stat = "identity") +
+  geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
+
+portfolio %>%
+  group_by (Name) %>%
+  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
+  arrange(desc(total), by_group = TRUE)
