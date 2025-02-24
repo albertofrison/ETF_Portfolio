@@ -259,4 +259,29 @@ portfolio %>%
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
 
 
+##### --------------------------------------------------------------------------
+# Examples of double entry tables - experimental
+a <- portfolio %>%
+  group_by (MacroArea) %>%
+  summarise (Weight = as.numeric(format (round(sum(Effective_Weight, na.rm = T), digits = 3), digits = 2)),
+             Number = as.numeric(format (round(n(), digits = 3), digits = 2))
+             ) %>%
+  arrange (desc(Weight))
+a
 
+
+xtabs (round (Effective_Weight, digits = 3) ~ MacroArea + Industry, data = portfolio)
+
+install.packages("janitor")
+library(janitor)
+library(scales)
+
+df_pivot <- portfolio %>%
+  group_by(MacroArea, Industry) %>%
+  summarise(Total = sum(Effective_Weight, na.rm = TRUE)) %>%
+  pivot_wider(names_from = Industry, values_from = Total, values_fill = 0) %>%
+  adorn_totals(where = c("row", "col")) %>%
+  mutate(across(where(is.numeric), ~ percent(round(., 2))))
+
+print(df_pivot)
+view(df_pivot)
