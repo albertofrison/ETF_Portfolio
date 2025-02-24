@@ -1,29 +1,22 @@
-#####
-# A. INTRODUCTION
+# A. INTRODUCTION --------------------------------------------------------------
 # R Project to better understand the composition of your ETF Portfolio
 # I download the components of some ETFs listed in Xetra or Borsa Italiana from a number of providers (composing my Portfolio) such as iShares or Vanguard and I 
 # analyse them from the Market, Area, Sector, Currency, ... point of view and hopefully provide more insights.
+# For some reasons some XLS files need to be opened and saved in Excel prior opening them into R.
 # Created - February 2025
 
 
-#####
-# B. LIBRARIES
+# B. LIBRARIES -----------------------------------------------------------------
 library (tidyverse)
 library (readxl)
-install.packages("openxlsx")
-library(openxlsx)
-install.packages("rio")
-library(rio)
 
 
-#####
-# C. INITIALIZATION / CLEANUP
+# C. INITIALIZATION / CLEANUP --------------------------------------------------
 rm (list = ls()) # cleans up objects in the environment
 
 
 
-#####
-# D. LOADING THE DATASET
+# D. LOADING THE DATASET -------------------------------------------------------
 # We will download locally the .xlsx file (through an excel object) of all the ETFs we need 
 # then we will select the information (columns we need) from all the ETFs and store into a dataframe
 # while creating the dataframe we will convert the data in the correct class (character, integer, ...)
@@ -35,14 +28,11 @@ download.file(url, destfile, method="auto", mode ="wb")
 data_XDEW <- read_excel(destfile, sheet = 1, col_names = TRUE, skip = 3)
 
 
-
 # IUSN	iShares MSCI World Small Cap UCITS ETF	WDSC	iShares
 url <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund"
 destfile = paste("./data/","IUSN.xls", sep ="")
 download.file(url, destfile, method="auto", mode ="wb")
 data_IUSN <- read_excel(destfile, sheet = 1, col_names = TRUE, skip = 7)
-
-
 
 
 # EXUS	Xtrackers MSCI World ex USA UCITS ETF 1C	EXUS	Xtrackers
@@ -52,15 +42,11 @@ download.file(url, destfile, method="auto", mode ="wb")
 data_EXUS <- read_excel(destfile, sheet = 1, col_names = TRUE, skip = 3)
 
 
-
-
 # EIMI	iShares Core MSCI Emerging Markets IMI UCITS ETF (Acc)
 url <- "https://www.ishares.com/it/investitore-privato/it/prodotti/264659/ishares-msci-emerging-markets-imi-ucits-etf/1538022822418.ajax?fileType=xls&fileName=iShares-Core-MSCI-EM-IMI-UCITS-ETF-USD-Acc_fund&dataType=fund"
 destfile = paste("./data/","EIMI.xls", sep ="")
 download.file(url, destfile, method="auto", mode ="wb")
 data_EIMI <- read_excel(destfile, sheet = 1, col_names = TRUE, skip = 7)
-
-
 
 
 # IWSZ	iShares MSCI World Mid-Cap Equal Weight UCITS ETF	IWSZ	iShares
@@ -70,10 +56,7 @@ download.file(url, destfile, method="auto", mode ="wb")
 data_IWSZ <- read_excel(destfile, sheet = 1, col_names = TRUE, skip = 7)
 
 
-#####
-# E. CREATING AND FORMATTING THE DATAFRAME
-
-
+# E. CREATING AND FORMATTING THE DATAFRAME -------------------------------------
 #keeping the necessary columns
 data_XDEW <- data_XDEW[c(2,4,5,10,11)] 
 data_IUSN <- data_IUSN[c(2,3,6,10,12)]
@@ -81,32 +64,36 @@ data_EXUS <- data_EXUS[c(2,4,5,10,11)]
 data_EIMI <- data_EIMI[c(2,3,6,10,12)]
 data_IWSZ <- data_IWSZ[c(2,3,6,10,12)]
 
+# adding the source ETF in a column
 data_XDEW$ETF <- "XDEW"
 data_IUSN$ETF <- "IUSN"
 data_EXUS$ETF <- "EXUS"
 data_EIMI$ETF <- "EIMI"
 data_IWSZ$ETF <- "IWSZ"
 
+# adding the weight of each ETF in my PTF
 data_XDEW$PTF_W <- 0.25
 data_IUSN$PTF_W <- 0.10
 data_EXUS$PTF_W <- 0.37
 data_EIMI$PTF_W <- 0.15
 data_IWSZ$PTF_W <- 0.13
 
-
+# addressing the number formatting in each ETF
+data_XDEW$Weighting <- as.numeric (data_XDEW$Weighting)
 data_IUSN$`Ponderazione (%)` <- as.numeric(data_IUSN$`Ponderazione (%)`/100)
 data_EXUS$Weighting <- as.numeric(data_EXUS$Weighting)
 data_EIMI$`Ponderazione (%)` <- as.numeric(data_EIMI$`Ponderazione (%)`/100)
 data_IWSZ$`Ponderazione (%)` <- as.numeric(data_IWSZ$`Ponderazione (%)`/100)
 
 
+# preparing datasets to be added to a single dataframe
 colnames(data_XDEW) <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight")
 colnames(data_IUSN) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
 colnames(data_EXUS) <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight")
 colnames(data_EIMI) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
 colnames(data_IWSZ) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
 
-
+# creating one additional column to store the effective weight of each security in the global portfolio
 data_XDEW$Effective_Weight <- as.numeric(data_XDEW$PTF_Weight) * as.numeric(data_XDEW$Weight)
 data_IUSN$Effective_Weight <- as.numeric(data_IUSN$PTF_Weight) * as.numeric(data_IUSN$Weight)
 data_EXUS$Effective_Weight <- as.numeric(data_EXUS$PTF_Weight) * as.numeric(data_EXUS$Weight)
@@ -114,24 +101,19 @@ data_EIMI$Effective_Weight <- as.numeric(data_EIMI$PTF_Weight) * as.numeric(data
 data_IWSZ$Effective_Weight <- as.numeric(data_IWSZ$PTF_Weight) * as.numeric(data_IWSZ$Weight)
 
 
-#####
 # Creation of the main dataframe
 portfolio <- ""
-
 columns <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "EffectiveWeight")
 portfolio = data.frame(matrix(nrow = 0, ncol = length(columns))) 
-
 colnames(portfolio) <- columns
 
+# Appending each ETF into the global dataframe
 portfolio <- rbind(portfolio,data_XDEW)
 portfolio <- rbind(portfolio,data_IUSN)
 portfolio <- rbind(portfolio,data_EXUS)
 portfolio <- rbind(portfolio,data_EIMI)
 portfolio <- rbind(portfolio,data_IWSZ)
 
-
-
-#####
 # Formatting the Name of the Countries
 portfolio$Country <- ifelse (portfolio$Country == "Stati Uniti d'America", "Stati Uniti", portfolio$Country)
 portfolio$Country <- ifelse (portfolio$Country == "Paesi Bassi (Olanda)", "Olanda", ifelse (portfolio$Country == "Paesi Bassi", "Olanda", portfolio$Country))
@@ -139,8 +121,7 @@ portfolio$Country <- ifelse (portfolio$Country == "Repubblica di Corea (Corea de
 portfolio$Country <- ifelse (portfolio$Country == "Regno Unito", "Regno unito", portfolio$Country)
 
 
-# Creating the MacroArea
-
+# Creating the MacroArea information 
 portfolio <- portfolio %>%
   mutate (MacroArea = case_when(
     Country == "Stati Uniti" ~ "USA",
@@ -195,7 +176,7 @@ portfolio$Industry <- ifelse (portfolio$Industry == "Beni voluttuari", "Consumi 
 portfolio$Industry <- ifelse (portfolio$Industry == "Imprese di servizi di pubblica utilità", "Utilities", portfolio$Industry)
 portfolio$Industry <- ifelse (portfolio$Industry == "Servizi di pubblica utilità", "Utilities", portfolio$Industry)
 
-# trasforming data into factors and numeric, where needed
+# Trasformation of character data into Factors, where it makes sense
 portfolio$Country <- as.factor(portfolio$Country)
 portfolio$Currency <- as.factor (portfolio$Currency)
 portfolio$Weight <- as.numeric (portfolio$Weight)
@@ -208,17 +189,13 @@ summary (portfolio)
 
 
 
-#####
-# Starting of the Analysis
+# F. Analysis ------------------------------------------------------------------
 portfolio %>%
   group_by (Country) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE)
 
 
-
-
-#####
 # CURRENCY
 portfolio %>%
   group_by (Currency) %>%
@@ -281,7 +258,5 @@ portfolio %>%
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
 
-portfolio %>%
-  group_by (Name) %>%
-  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
-  arrange(desc(total), by_group = TRUE)
+
+
