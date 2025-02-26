@@ -10,6 +10,7 @@
 library (tidyverse)
 library (readxl)
 library (rvest)
+library(forcats)
 
 
 # C. INITIALIZATION / CLEANUP --------------------------------------------------
@@ -222,18 +223,18 @@ portfolio %>%
   group_by(Currency) %>%
   summarise(Weight = sum(Weight)) %>%
   arrange(desc(Weight), by_group = TRUE) %>%
-  mutate(Currency = factor(Currency, levels = c(setdiff(unique(Currency), "Others"), "Others"))) %>%
+  mutate(Currency = factor(Currency, levels = rev(c(setdiff(unique(Currency), "Others"), "Others")))) %>%
   ggplot (aes (x = "", y = Weight, fill = Currency)) +
-  geom_bar(stat = "identity", width = 1) +
+  geom_bar(stat = "identity", width = 1, color = "white", size = 0.15) +
   coord_polar ("y", start = 0) +
-  #geom_text(aes(label = paste0(round(total*100), "%")), position = position_stack(vjust = 0.5)) +
+  geom_text(aes(label = paste0(Currency, " ", round(Weight*100), "%")), position = position_stack(vjust = 0.5), size = 3, color = "white") +
   theme_minimal() +
+  guides(fill = guide_legend(reverse = TRUE)) +
   scale_fill_manual(values=c("#55DDE0", "#33658A", "#2F4858", "#F6AE2D", "#F26419", "#D47309", "#AAABBB")) +
     labs(title = "Esposizione del portafoglio alle Valute",
        subtitle ="Dati in %",
        x = "Valuta",
        y ="% sul Portafoglio")
-
 
 
 portfolio %>%
