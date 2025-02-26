@@ -285,3 +285,23 @@ df_pivot <- portfolio %>%
 
 print(df_pivot)
 view(df_pivot)
+
+
+##### Retrieve Historical data for simulations ---------------------------------
+install.packages("quantmod")
+library(quantmod)
+library (tidyverse)
+
+# scarico i dati storici da yahoo
+getSymbols(Symbols = "^SPXEW", src = "yahoo", from = "1900-01-01", to = Sys.Date())
+head (SPXEW)
+
+# converto SPXEW in un dataframe
+df_SPXEW <- data.frame (Date = index(SPXEW), coredata(SPXEW))
+
+colnames(df_SPXEW) <- c ("Date", "Open", "High", "Low", "Close", "Volume", "Adjusted")
+
+
+df_SPXEW %>%
+  ggplot(aes (x = Date, y = Close)) +
+  geom_line()
