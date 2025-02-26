@@ -1,5 +1,5 @@
 # A. INTRODUCTION --------------------------------------------------------------
-# R Project to better understand the composition of your ETF Portfolio
+# R Project to better understand the composition of my  ETF Portfolio
 # I download the components of some ETFs listed in Xetra or Borsa Italiana from a number of providers (composing my Portfolio) such as iShares or Vanguard and I 
 # analyse them from the Market, Area, Sector, Currency, ... point of view and hopefully provide more insights.
 # For some reasons some XLS files need to be opened and saved in Excel prior opening them into R.
@@ -14,7 +14,6 @@ library (rvest)
 
 # C. INITIALIZATION / CLEANUP --------------------------------------------------
 rm (list = ls()) # cleans up objects in the environment
-
 
 
 # D. LOADING THE DATASET -------------------------------------------------------
@@ -58,7 +57,7 @@ data_IWSZ <- read_excel(destfile, sheet = 1, col_names = TRUE, skip = 7)
 
 
 # E. CREATING AND FORMATTING THE DATAFRAME -------------------------------------
-#keeping the necessary columns
+# keeping the necessary columns
 data_XDEW <- data_XDEW[c(2,4,5,10,11)] 
 data_IUSN <- data_IUSN[c(2,3,6,10,12)]
 data_EXUS <- data_EXUS[c(2,4,5,10,11)]
@@ -177,14 +176,13 @@ portfolio$Industry <- ifelse (portfolio$Industry == "Beni voluttuari", "Consumi 
 portfolio$Industry <- ifelse (portfolio$Industry == "Imprese di servizi di pubblica utilità", "Utilities", portfolio$Industry)
 portfolio$Industry <- ifelse (portfolio$Industry == "Servizi di pubblica utilità", "Utilities", portfolio$Industry)
 
-# Trasformation of character data into Factors, where it makes sense
+# Trasformation of character data into Factors or Numbers, where it makes sense
 portfolio$Country <- as.factor(portfolio$Country)
 portfolio$Currency <- as.factor (portfolio$Currency)
 portfolio$Weight <- as.numeric (portfolio$Weight)
 portfolio$ETF <- as.factor(portfolio$ETF)
 portfolio$Industry <- as.factor(portfolio$Industry)
 portfolio$MacroArea <- as.factor(portfolio$MacroArea)
-
 
 summary (portfolio)
 
@@ -197,19 +195,46 @@ portfolio %>%
   arrange(desc(total), by_group = TRUE)
 
 
-
-
 # CURRENCY ---------------------------------------------------------------------
-# Here I also put a reference on the main interest rates issued by the main Central Banks
+# Bar Chart to illustrate the relative importance, the exposure of the portfolio, to each Currency
 portfolio %>%
   group_by (Currency) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
-  arrange(desc(total), by_group = TRUE) %>%
+  arrange(desc(total)) %>%
   ggplot (aes (x = reorder (Currency, -total), y = total, fill = Currency)) +
   geom_bar(stat = "identity") +
   geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), legend.position = "none")
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), legend.position = "none") +
+  labs(title = "Esposizione del portafoglio alle Valute",
+       subtitle ="Dati in %",
+       x = "Valuta",
+       y ="% sul Portafoglio")
+
+# ... here in pie-chart form
+portfolio %>%
+  group_by (Currency) %>%
+  summarise (Weight = sum(Effective_Weight, na.rm = TRUE)) %>%
+  arrange(desc(Weight)) %>%
+  mutate(Currency = case_when(
+    row_number() <= 6 ~ Currency,
+    TRUE ~ "Others")) %>%
+  group_by(Currency) %>%
+  summarise(Weight = sum(Weight)) %>%
+  arrange(desc(Weight), by_group = TRUE) %>%
+  mutate(Currency = factor(Currency, levels = c(setdiff(unique(Currency), "Others"), "Others"))) %>%
+  ggplot (aes (x = "", y = Weight, fill = Currency)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar ("y", start = 0) +
+  #geom_text(aes(label = paste0(round(total*100), "%")), position = position_stack(vjust = 0.5)) +
+  theme_minimal() +
+  scale_fill_manual(values=c("#55DDE0", "#33658A", "#2F4858", "#F6AE2D", "#F26419", "#D47309", "#AAABBB")) +
+    labs(title = "Esposizione del portafoglio alle Valute",
+       subtitle ="Dati in %",
+       x = "Valuta",
+       y ="% sul Portafoglio")
+
+
 
 portfolio %>%
   group_by (Currency) %>%
@@ -239,7 +264,7 @@ df_interest_rates %>%
             position = position_dodge(width = 0.8),
             vjust = -0.5, size = 4) +
   theme_minimal() +
-  scale_fill_manual (values = c("clean_Last" = "blue", "clean_Previous" = "red"))
+  scale_fill_manual (values = c("clean_Last" = "blue", "clean_Previous" = "darkgreen"))
 
 
 #####
