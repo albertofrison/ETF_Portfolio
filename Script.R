@@ -9,6 +9,7 @@
 # B. LIBRARIES -----------------------------------------------------------------
 library (tidyverse)
 library (readxl)
+library (rvest)
 
 
 # C. INITIALIZATION / CLEANUP --------------------------------------------------
@@ -196,7 +197,10 @@ portfolio %>%
   arrange(desc(total), by_group = TRUE)
 
 
-# CURRENCY
+
+
+# CURRENCY ---------------------------------------------------------------------
+# Here I also put a reference on the main interest rates issued by the main Central Banks
 portfolio %>%
   group_by (Currency) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
@@ -206,6 +210,36 @@ portfolio %>%
   geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), legend.position = "none")
+
+portfolio %>%
+  group_by (Currency) %>%
+  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
+  arrange(desc(total), by_group = TRUE)
+
+# recupero i dati dal sito trading economics
+url <- "https://tradingeconomics.com/country-list/interest-rate"
+webpage <- read_html(url)
+table <- webpage %>%
+    html_element("table") %>%
+    html_table(fill = TRUE)
+
+# pulisco i dati e aggiusto il dataframe per il plotting
+df_interest_rates <- table %>%
+  select (Country, Last, Previous) %>%
+  filter (Country %in% c("United States", "Euro Area", "Japan", "United Kindgom", "Canada")) %>%
+  mutate (across(c(Last, Previous), ~  as.numeric(gsub("%", "", .)), .names = "clean_{.col}")) %>%
+  select (Country, clean_Last, clean_Previous) %>%
+  pivot_longer(cols = c("clean_Last", "clean_Previous"), names_to = "Period", values_to = "Rate")
+
+# plot dei chart
+df_interest_rates %>%
+  ggplot (aes(x = Country, y = Rate, fill = Period))+
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round (Rate, 2)), 
+            position = position_dodge(width = 0.8),
+            vjust = -0.5, size = 4) +
+  theme_minimal() +
+  scale_fill_manual (values = c("clean_Last" = "blue", "clean_Previous" = "red"))
 
 
 #####
@@ -293,9 +327,11 @@ library(quantmod)
 library (tidyverse)
 
 # scarico i dati storici da yahoo
-getSymbols(Symbols = c("^SPXEW", "^GSPC"), src = "yahoo", from = "1900-01-01", to = Sys.Date())
+getSymbols(Symbols = c("^SPXEW", "^GSPC", "WSML.L"), src = "yahoo", from = "1900-01-01", to = Sys.Date())
 head (SPXEW)
 head(GSPC)
+head(WSML.L)
+
 
 # converto SPXEW in un dataframe
 df_SPXEW <- data.frame (Date = index(SPXEW), coredata(SPXEW))
