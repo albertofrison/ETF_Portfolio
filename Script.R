@@ -293,15 +293,39 @@ library(quantmod)
 library (tidyverse)
 
 # scarico i dati storici da yahoo
-getSymbols(Symbols = "^SPXEW", src = "yahoo", from = "1900-01-01", to = Sys.Date())
+getSymbols(Symbols = c("^SPXEW", "^GSPC"), src = "yahoo", from = "1900-01-01", to = Sys.Date())
 head (SPXEW)
+head(GSPC)
 
 # converto SPXEW in un dataframe
 df_SPXEW <- data.frame (Date = index(SPXEW), coredata(SPXEW))
+df_GSPC <- data.frame (Date = index(GSPC), coredata(GSPC))
+
 
 colnames(df_SPXEW) <- c ("Date", "Open", "High", "Low", "Close", "Volume", "Adjusted")
+colnames(df_GSPC) <- c ("Date", "Open", "High", "Low", "Close", "Volume", "Adjusted")
 
+df_SPXEW$Index <- "S&P500 Equal Weight"
+df_GSPC$Index <- "S&P500 Market Weight"
 
-df_SPXEW %>%
-  ggplot(aes (x = Date, y = Close)) +
+df_binded <- inner_join(df_SPXEW, df_GSPC, by = "Date", suffix = c("_SP500_EW", "_SP500_MW"))
+first_date <- min(df_binded$Date)
+
+head(df_binded)
+
+df_binded <- df_binded %>%
+  mutate (Close_SPXEW_Norm = (Close_SP500_EW / Close_SP500_EW [Date == first_date])*100,
+          Close_GSPC_Norm = (Close_SP500_MW / Close_SP500_MW [Date == first_date])*100
+          ) %>%
+  pivot_longer(cols = starts_with("Close_"), names_to = "Index", values_to = "Price") %>%
+  mutate (Index = recode(Index,
+                         "Close_SP500_EW" = "S&P 500 Equal Weight",
+                         "Close_SP500_MW" = "S&P 500 Market Weight",
+                         "Close_SPXEW_Norm" = "S&P 500 Equal Weight Standard",
+                         "Close_GSPC_Norm" = "S&P 500 Market Weight Standard"
+                         ))
+
+df_binded %>%
+  filter (Index %in% c("S&P 500 Market Weight Standard", "S&P 500 Equal Weight Standard")) %>%
+  ggplot(aes (x = Date, y = Price, color = Index)) +
   geom_line()
