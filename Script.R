@@ -467,4 +467,24 @@ if (inherits(df, "try-error")) {
 }
 
 
+
+##### ALTRI ESPERIEMENTI PER SCARICARE DATI DEGLI ETF, COME IL PE --------------
+library(rvest)
+
+# URL dell'ETF su Morningstar (sostituisci con l'ETF che ti interessa)
+url <- "https://www.morningstar.it/it/etf/snapshot/snapshot.aspx?id=0P0000NGM7"
+
+# Scarica la pagina HTML
+pagina <- read_html(url)
+
+# Estrai il valore del P/E ratio
+pe_ratio <- pagina %>%
+  html_nodes(xpath = "//td[contains(text(), 'Rapporto P/U')]//following-sibling::td") %>%
+  html_text() %>%
+  trimws()
+
+# Mostra il P/E r
+print(paste("P/E Ratio:", pe_ratio))
+
+
   
