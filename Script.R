@@ -10,7 +10,7 @@
 library (tidyverse)
 library (readxl)
 library (rvest)
-library(forcats)
+library (forcats)
 
 
 # C. INITIALIZATION / CLEANUP --------------------------------------------------
@@ -293,17 +293,6 @@ portfolio %>%
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
 
-#####
-# NANME - DO NOT USE
-portfolio %>%
-  group_by (Name) %>%
-  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
-  arrange(desc(total), by_group = TRUE) %>%
-  ggplot (aes (x = reorder (Name, -total), y = total, fill = Name)) +
-  geom_bar(stat = "identity") +
-  geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
 
 
 #####
@@ -348,7 +337,6 @@ view(df_pivot)
 
 
 ##### Retrieve Historical data for simulations ---------------------------------
-install.packages("quantmod")
 library(quantmod)
 library (tidyverse)
 
@@ -391,3 +379,29 @@ df_binded %>%
   filter (Index %in% c("S&P 500 Market Weight Standard", "S&P 500 Equal Weight Standard")) %>%
   ggplot(aes (x = Date, y = Price, color = Index)) +
   geom_line()
+
+#### Fx Exchange Rates ---------------------------------------------------------
+# Exchange Rates are useful to understand wether to hedge or not the portfolio
+getSymbols(Symbols = c("EURUSD=X", "EURJPY=X"), src = "yahoo", from = "1900-01-01", to = Sys.Date())
+df_EURUSD <- data.frame (Date = index(`EURUSD=X`), coredata(`EURUSD=X`))
+df_EURJPY <- data.frame (Date = index(`EURJPY=X`), coredata(`EURJPY=X`))
+
+df_Currencies <- inner_join(df_EURUSD,df_EURJPY, by = "Date")
+#first_date <- min(df_Currencies$Date)
+
+start_date <- "2020-01-01"
+
+df_Currencies %>%
+  select(Date, EURUSD.X.Close, EURJPY.X.Close) %>%
+  #pivot_longer(cols = c("EURUSD.X.Close", "EURJPY.X.Close"), names_to = "Currency", values_to = "FxRate") %>%
+  filter (Date >= start_date) %>%
+  mutate (EURUSD_Normalized = (EURUSD.X.Close / EURUSD.X.Close[Date == start_date])*100,
+          EURJPY_Normalized = (EURJPY.X.Close / EURJPY.X.Close[Date == start_date])*100,
+          ) %>%
+  select(Date, EURUSD_Normalized, EURJPY_Normalized) %>%
+  pivot_longer(cols = c("EURUSD_Normalized", "EURJPY_Normalized"), names_to = "Currency", values_to = "FxRate") %>%
+  ggplot(aes (x = Date, y = FxRate)) +
+  geom_line() +
+  facet_wrap(~ Currency, nrow = 1)
+
+  
