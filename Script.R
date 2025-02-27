@@ -9,7 +9,7 @@
 # B. LIBRARIES -----------------------------------------------------------------
 library (tidyverse)
 library (readxl)
-library (rvest)
+library (rvest) 
 library (forcats)
 
 
@@ -161,7 +161,7 @@ portfolio <- portfolio %>%
     Country == "Cina" ~ "Cina",
     TRUE ~ "Developing"
   )
-)
+  )
 
 
 # Formatting the Industry
@@ -231,7 +231,7 @@ portfolio %>%
   theme_minimal() +
   guides(fill = guide_legend(reverse = TRUE)) +
   scale_fill_manual(values=c("#55DDE0", "#33658A", "#2F4858", "#F6AE2D", "#F26419", "#D47309", "#AAABBB")) +
-    labs(title = "Esposizione del portafoglio alle Valute",
+  labs(title = "Esposizione del portafoglio alle Valute",
        subtitle ="Dati in %",
        x = "Valuta",
        y ="% sul Portafoglio")
@@ -246,8 +246,8 @@ portfolio %>%
 url <- "https://tradingeconomics.com/country-list/interest-rate"
 webpage <- read_html(url)
 table <- webpage %>%
-    html_element("table") %>%
-    html_table(fill = TRUE)
+  html_element("table") %>%
+  html_table(fill = TRUE)
 
 # pulisco i dati e aggiusto il dataframe per il plotting
 df_interest_rates <- table %>%
@@ -314,7 +314,7 @@ a <- portfolio %>%
   group_by (MacroArea) %>%
   summarise (Weight = as.numeric(format (round(sum(Effective_Weight, na.rm = T), digits = 3), digits = 2)),
              Number = as.numeric(format (round(n(), digits = 3), digits = 2))
-             ) %>%
+  ) %>%
   arrange (desc(Weight))
 a
 
@@ -366,14 +366,14 @@ head(df_binded)
 df_binded <- df_binded %>%
   mutate (Close_SPXEW_Norm = (Close_SP500_EW / Close_SP500_EW [Date == first_date])*100,
           Close_GSPC_Norm = (Close_SP500_MW / Close_SP500_MW [Date == first_date])*100
-          ) %>%
+  ) %>%
   pivot_longer(cols = starts_with("Close_"), names_to = "Index", values_to = "Price") %>%
   mutate (Index = recode(Index,
                          "Close_SP500_EW" = "S&P 500 Equal Weight",
                          "Close_SP500_MW" = "S&P 500 Market Weight",
                          "Close_SPXEW_Norm" = "S&P 500 Equal Weight Standard",
                          "Close_GSPC_Norm" = "S&P 500 Market Weight Standard"
-                         ))
+  ))
 
 df_binded %>%
   filter (Index %in% c("S&P 500 Market Weight Standard", "S&P 500 Equal Weight Standard")) %>%
@@ -397,11 +397,74 @@ df_Currencies %>%
   filter (Date >= start_date) %>%
   mutate (EURUSD_Normalized = (EURUSD.X.Close / EURUSD.X.Close[Date == start_date])*100,
           EURJPY_Normalized = (EURJPY.X.Close / EURJPY.X.Close[Date == start_date])*100,
-          ) %>%
+  ) %>%
   select(Date, EURUSD_Normalized, EURJPY_Normalized) %>%
   pivot_longer(cols = c("EURUSD_Normalized", "EURJPY_Normalized"), names_to = "Currency", values_to = "FxRate") %>%
   ggplot(aes (x = Date, y = FxRate)) +
   geom_line() +
   facet_wrap(~ Currency, nrow = 1)
+
+
+# Some experiments -------------------------------------------------------------
+library(httr)
+library(readxl)
+
+# URL del file Excel
+url <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BLNMYC90/"
+url <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund"
+url <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE0006WW1TQ4/"
+
+
+# Creare un file temporaneo
+temp_file <- tempfile(fileext = ".xlsx")
+
+# Scaricare il file impostando un user-agent per evitare blocchi
+res <- GET(url, 
+           write_disk(temp_file, overwrite = TRUE), 
+           add_headers("User-Agent" = "Mozilla/5.0"))
+
+# Verificare se il download è andato a buon fine
+if (http_type(res) == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+  # Leggere il file Excel
+  df <- read_excel(temp_file, skip = 2)  # Salta la prima riga se è un'intestazione extra
+  print(head(df))
+} else {
+  print("Errore nel download: il file potrebbe non essere accessibile.")
+}
+
+
+# Some experiments -------------------------------------------------------------
+# eureka - funziona, possiamo automatizzare questo!
+
+library(httr)
+library(readxl)
+
+# URL del file Excel
+url <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund"
+
+# Creare file temporanei
+temp_file <- tempfile(fileext = ".xls")
+converted_file <- tempfile(fileext = ".xlsx")  # File finale in formato xlsx
+
+# Scaricare il file
+res <- GET(url, write_disk(temp_file, overwrite = TRUE), add_headers("User-Agent" = "Mozilla/5.0"))
+
+# Convertire il file usando LibreOffice (headless mode)
+system(paste("libreoffice --headless --convert-to xlsx", shQuote(temp_file), "--outdir", shQuote(dirname(converted_file))), wait = TRUE)
+
+# Ottenere il nome effettivo del file convertito
+converted_file <- sub("\\.xls$", ".xlsx", temp_file)
+
+# Leggere il file Excel convertito
+df <- try(read_xlsx(converted_file, skip = 6), silent = TRUE)
+
+# Controllare se la lettura è riuscita
+if (inherits(df, "try-error")) {
+  print("⚠️ Errore nella lettura del file convertito!")
+} else {
+  print("✅ File convertito e letto con successo!")
+  print(head(df))  
+}
+
 
   
