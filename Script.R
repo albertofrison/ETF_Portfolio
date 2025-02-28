@@ -8,6 +8,7 @@
 
 # B. LIBRARIES -----------------------------------------------------------------
 library (tidyverse)
+library (httr)
 library (readxl)
 library (rvest) 
 library (forcats)
@@ -22,6 +23,105 @@ rm (list = ls()) # cleans up objects in the environment
 # then we will select the information (columns we need) from all the ETFs and store into a dataframe
 # while creating the dataframe we will convert the data in the correct class (character, integer, ...)
 
+
+# URL del file Excel dei datasets
+
+# XDEW	Xtrackers S&P 500 Equal Weight UCITS ETF 1C	XDEW	Xtrackers
+url1 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BLNMYC90/" #XDEW
+url2 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund" #IUSN
+url3 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE0006WW1TQ4/" #EXUS
+url4 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/264659/ishares-msci-emerging-markets-imi-ucits-etf/1538022822418.ajax?fileType=xls&fileName=iShares-Core-MSCI-EM-IMI-UCITS-ETF-USD-Acc_fund&dataType=fund" #EIMI
+url5 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/270057/ishares-msci-world-size-factor-ucits-etf/1538022822418.ajax?fileType=xls&fileName=IWSZ&dataType=fund" # IWSZ
+
+urls <- c(url1, url2, url3, url4, url5)
+skip_rows <- c(3,7,3,7,7) #each xls has a different number of rows to be skipped when opened 
+keep_columns <- c(c(2,4,5,10,11),c(2,3,6,10,12),c(2,4,5,10,11), c(2,3,6,10,12), c(2,3,6,10,12))
+etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ")
+etf_weights <- c(0.25,0.10,0.37,0.15,0.13)
+columns_name <- c(c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
+                  c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
+                  c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
+                  c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
+                  c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"))
+  
+data_XDEW <- data_XDEW[c(2,4,5,10,11)] 
+data_IUSN <- data_IUSN[c(2,3,6,10,12)]
+data_EXUS <- data_EXUS[c(2,4,5,10,11)]
+data_EIMI <- data_EIMI[c(2,3,6,10,12)]
+data_IWSZ <- data_IWSZ[c(2,3,6,10,12)]
+
+data_XDEW$ETF <- "XDEW"
+data_IUSN$ETF <- "IUSN"
+data_EXUS$ETF <- "EXUS"
+data_EIMI$ETF <- "EIMI"
+data_IWSZ$ETF <- "IWSZ"
+
+data_XDEW$PTF_W <- 0.25
+data_IUSN$PTF_W <- 0.10
+data_EXUS$PTF_W <- 0.37
+data_EIMI$PTF_W <- 0.15
+data_IWSZ$PTF_W <- 0.13
+
+colnames(data_XDEW) <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight")
+colnames(data_IUSN) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
+colnames(data_EXUS) <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight")
+colnames(data_EIMI) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
+colnames(data_IWSZ) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
+
+df_urls = data.frame (url = urls,
+                      skip_row = skip_rows,
+                      keep_column = keep_columns,
+                      etf_name = etf_names,
+                      etf_weight = etf_weights,
+                      column_name <- columns_name
+                      )
+
+
+
+for (i in 1:nrow(df_urls))
+{
+  # Crea i file temporanei
+  temp_file <- tempfile(fileext = ".xls")
+  converted_file <- tempfile(fileext = ".xlsx")  # File finale in formato xlsx
+  
+  current_url <- df_urls$url[i]
+  # Scaricare il file
+  res <- GET(current_url, write_disk(temp_file, overwrite = TRUE), add_headers("User-Agent" = "Mozilla/5.0"))
+  
+  # Convertire il file usando LibreOffice (headless mode)
+  system(paste("libreoffice --headless --convert-to xlsx", shQuote(temp_file), "--outdir", shQuote(dirname(converted_file))), wait = TRUE)
+  
+  # Ottenere il nome effettivo del file convertito
+  converted_file <- sub("\\.xls$", ".xlsx", temp_file)
+  
+  # Leggere il file Excel convertito
+  df <- try(read_xlsx(converted_file, skip = df_urls$skip_row[i]), silent = TRUE)
+  
+  # Controllare se la lettura è riuscita
+  if (inherits(df, "try-error")) {
+    print("⚠️ Errore nella lettura del file convertito!")
+  } 
+  else {
+    
+    df <- df[df_urls$keep_column[i]]
+    df$ETF <- df_urls$etf_name[i]
+    
+  }
+  
+}
+
+
+#
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # XDEW	Xtrackers S&P 500 Equal Weight UCITS ETF 1C	XDEW	Xtrackers
 url <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BLNMYC90/"
 destfile = paste("./data/","XDEW.xlsx", sep ="")
@@ -405,66 +505,6 @@ df_Currencies %>%
   facet_wrap(~ Currency, nrow = 1)
 
 
-# Some experiments -------------------------------------------------------------
-library(httr)
-library(readxl)
-
-# URL del file Excel
-url <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BLNMYC90/"
-url <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund"
-url <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE0006WW1TQ4/"
-
-
-# Creare un file temporaneo
-temp_file <- tempfile(fileext = ".xlsx")
-
-# Scaricare il file impostando un user-agent per evitare blocchi
-res <- GET(url, 
-           write_disk(temp_file, overwrite = TRUE), 
-           add_headers("User-Agent" = "Mozilla/5.0"))
-
-# Verificare se il download è andato a buon fine
-if (http_type(res) == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
-  # Leggere il file Excel
-  df <- read_excel(temp_file, skip = 2)  # Salta la prima riga se è un'intestazione extra
-  print(head(df))
-} else {
-  print("Errore nel download: il file potrebbe non essere accessibile.")
-}
-
-
-# Some experiments -------------------------------------------------------------
-# eureka - funziona, possiamo automatizzare questo!
-
-library(httr)
-library(readxl)
-
-# URL del file Excel
-url <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund"
-
-# Creare file temporanei
-temp_file <- tempfile(fileext = ".xls")
-converted_file <- tempfile(fileext = ".xlsx")  # File finale in formato xlsx
-
-# Scaricare il file
-res <- GET(url, write_disk(temp_file, overwrite = TRUE), add_headers("User-Agent" = "Mozilla/5.0"))
-
-# Convertire il file usando LibreOffice (headless mode)
-system(paste("libreoffice --headless --convert-to xlsx", shQuote(temp_file), "--outdir", shQuote(dirname(converted_file))), wait = TRUE)
-
-# Ottenere il nome effettivo del file convertito
-converted_file <- sub("\\.xls$", ".xlsx", temp_file)
-
-# Leggere il file Excel convertito
-df <- try(read_xlsx(converted_file, skip = 6), silent = TRUE)
-
-# Controllare se la lettura è riuscita
-if (inherits(df, "try-error")) {
-  print("⚠️ Errore nella lettura del file convertito!")
-} else {
-  print("✅ File convertito e letto con successo!")
-  print(head(df))  
-}
 
 
 
