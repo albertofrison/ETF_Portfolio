@@ -25,8 +25,6 @@ rm (list = ls()) # cleans up objects in the environment
 
 
 # URL del file Excel dei datasets
-
-# XDEW	Xtrackers S&P 500 Equal Weight UCITS ETF 1C	XDEW	Xtrackers
 url1 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BLNMYC90/" #XDEW
 url2 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund" #IUSN
 url3 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE0006WW1TQ4/" #EXUS
@@ -35,51 +33,35 @@ url5 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/270057/ishar
 
 urls <- c(url1, url2, url3, url4, url5)
 skip_rows <- c(3,7,3,7,7) #each xls has a different number of rows to be skipped when opened 
-keep_columns <- c(c(2,4,5,10,11),c(2,3,6,10,12),c(2,4,5,10,11), c(2,3,6,10,12), c(2,3,6,10,12))
+keep_columns <- list(c(2,4,5,10,11),c(2,3,6,10,12),c(2,4,5,10,11), c(2,3,6,10,12), c(2,3,6,10,12))
 etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ")
 etf_weights <- c(0.25,0.10,0.37,0.15,0.13)
-columns_name <- c(c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
+columns_name <- list(c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"))
-  
-data_XDEW <- data_XDEW[c(2,4,5,10,11)] 
-data_IUSN <- data_IUSN[c(2,3,6,10,12)]
-data_EXUS <- data_EXUS[c(2,4,5,10,11)]
-data_EIMI <- data_EIMI[c(2,3,6,10,12)]
-data_IWSZ <- data_IWSZ[c(2,3,6,10,12)]
 
-data_XDEW$ETF <- "XDEW"
-data_IUSN$ETF <- "IUSN"
-data_EXUS$ETF <- "EXUS"
-data_EIMI$ETF <- "EIMI"
-data_IWSZ$ETF <- "IWSZ"
 
-data_XDEW$PTF_W <- 0.25
-data_IUSN$PTF_W <- 0.10
-data_EXUS$PTF_W <- 0.37
-data_EIMI$PTF_W <- 0.15
-data_IWSZ$PTF_W <- 0.13
-
-colnames(data_XDEW) <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight")
-colnames(data_IUSN) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
-colnames(data_EXUS) <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight")
-colnames(data_EIMI) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
-colnames(data_IWSZ) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
-
+# Here we prepare the dataframe containing all data necessary to download the files
 df_urls = data.frame (url = urls,
                       skip_row = skip_rows,
-                      keep_column = keep_columns,
                       etf_name = etf_names,
                       etf_weight = etf_weights,
-                      column_name <- columns_name
-                      )
+                      stringsAsFactors = FALSE)  
+df_urls$keep_column <- keep_columns  
+df_urls$column_name <- columns_name 
 
 
+# portfolio will contain the consolidated data, from all ETFs
+portfolio <- ""
+columns <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "EffectiveWeight")
+portfolio = data.frame(matrix(nrow = 0, ncol = length(columns))) 
+colnames(portfolio) <- columns
 
-for (i in 1:nrow(df_urls))
-{
+
+# automated download of the excels and inclusion into the portfolio dataframe
+for (i in 1:nrow(df_urls)) {
   # Crea i file temporanei
   temp_file <- tempfile(fileext = ".xls")
   converted_file <- tempfile(fileext = ".xlsx")  # File finale in formato xlsx
@@ -97,123 +79,19 @@ for (i in 1:nrow(df_urls))
   # Leggere il file Excel convertito
   df <- try(read_xlsx(converted_file, skip = df_urls$skip_row[i]), silent = TRUE)
   
-  # Controllare se la lettura è riuscita
-  if (inherits(df, "try-error")) {
-    print("⚠️ Errore nella lettura del file convertito!")
-  } 
-  else {
+
+  df <- df[df_urls$keep_column[[i]]]
+  df$ETF <- df_urls$etf_name[i]
+  df$PTF_W <- df_urls$etf_weight[i]
+  df$EffectiveWeight <- 0
+  colnames(df) <- df_urls$column_name[[i]]
+   
     
-    df <- df[df_urls$keep_column[i]]
-    df$ETF <- df_urls$etf_name[i]
-    
-  }
-  
+  # Appending each ETF into the global dataframe
+  portfolio <- rbind(portfolio,df)
+
 }
 
-
-#
-
-
-
-
-
-
-
-
-# ------------------------------------------------------------------------------
-# ------------------------------------------------------------------------------
-# XDEW	Xtrackers S&P 500 Equal Weight UCITS ETF 1C	XDEW	Xtrackers
-url <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BLNMYC90/"
-destfile = paste("./data/","XDEW.xlsx", sep ="")
-download.file(url, destfile, method="auto", mode ="wb")
-data_XDEW <- read_excel(destfile, sheet = 1, col_names = TRUE, skip = 3)
-
-
-# IUSN	iShares MSCI World Small Cap UCITS ETF	WDSC	iShares
-url <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund"
-destfile = paste("./data/","IUSN.xls", sep ="")
-download.file(url, destfile, method="auto", mode ="wb")
-data_IUSN <- read_excel(destfile, sheet = 1, col_names = TRUE, skip = 7)
-
-
-# EXUS	Xtrackers MSCI World ex USA UCITS ETF 1C	EXUS	Xtrackers
-url <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE0006WW1TQ4/"
-destfile = paste("./data/","EXUS.xlsx", sep ="")
-download.file(url, destfile, method="auto", mode ="wb")
-data_EXUS <- read_excel(destfile, sheet = 1, col_names = TRUE, skip = 3)
-
-
-# EIMI	iShares Core MSCI Emerging Markets IMI UCITS ETF (Acc)
-url <- "https://www.ishares.com/it/investitore-privato/it/prodotti/264659/ishares-msci-emerging-markets-imi-ucits-etf/1538022822418.ajax?fileType=xls&fileName=iShares-Core-MSCI-EM-IMI-UCITS-ETF-USD-Acc_fund&dataType=fund"
-destfile = paste("./data/","EIMI.xls", sep ="")
-download.file(url, destfile, method="auto", mode ="wb")
-data_EIMI <- read_excel(destfile, sheet = 1, col_names = TRUE, skip = 7)
-
-
-# IWSZ	iShares MSCI World Mid-Cap Equal Weight UCITS ETF	IWSZ	iShares
-url <- "https://www.ishares.com/it/investitore-privato/it/prodotti/270057/ishares-msci-world-size-factor-ucits-etf/1538022822418.ajax?fileType=xls&fileName=IWSZ&dataType=fund"
-destfile = paste("./data/","IWSZ.xls", sep ="")
-download.file(url, destfile, method="auto", mode ="wb")
-data_IWSZ <- read_excel(destfile, sheet = 1, col_names = TRUE, skip = 7)
-
-
-# E. CREATING AND FORMATTING THE DATAFRAME -------------------------------------
-# keeping the necessary columns
-data_XDEW <- data_XDEW[c(2,4,5,10,11)] 
-data_IUSN <- data_IUSN[c(2,3,6,10,12)]
-data_EXUS <- data_EXUS[c(2,4,5,10,11)]
-data_EIMI <- data_EIMI[c(2,3,6,10,12)]
-data_IWSZ <- data_IWSZ[c(2,3,6,10,12)]
-
-# adding the source ETF in a column
-data_XDEW$ETF <- "XDEW"
-data_IUSN$ETF <- "IUSN"
-data_EXUS$ETF <- "EXUS"
-data_EIMI$ETF <- "EIMI"
-data_IWSZ$ETF <- "IWSZ"
-
-# adding the weight of each ETF in my PTF
-data_XDEW$PTF_W <- 0.25
-data_IUSN$PTF_W <- 0.10
-data_EXUS$PTF_W <- 0.37
-data_EIMI$PTF_W <- 0.15
-data_IWSZ$PTF_W <- 0.13
-
-# addressing the number formatting in each ETF
-data_XDEW$Weighting <- as.numeric (data_XDEW$Weighting)
-data_IUSN$`Ponderazione (%)` <- as.numeric(data_IUSN$`Ponderazione (%)`/100)
-data_EXUS$Weighting <- as.numeric(data_EXUS$Weighting)
-data_EIMI$`Ponderazione (%)` <- as.numeric(data_EIMI$`Ponderazione (%)`/100)
-data_IWSZ$`Ponderazione (%)` <- as.numeric(data_IWSZ$`Ponderazione (%)`/100)
-
-
-# preparing datasets to be added to a single dataframe
-colnames(data_XDEW) <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight")
-colnames(data_IUSN) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
-colnames(data_EXUS) <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight")
-colnames(data_EIMI) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
-colnames(data_IWSZ) <- c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight")
-
-# creating one additional column to store the effective weight of each security in the global portfolio
-data_XDEW$Effective_Weight <- as.numeric(data_XDEW$PTF_Weight) * as.numeric(data_XDEW$Weight)
-data_IUSN$Effective_Weight <- as.numeric(data_IUSN$PTF_Weight) * as.numeric(data_IUSN$Weight)
-data_EXUS$Effective_Weight <- as.numeric(data_EXUS$PTF_Weight) * as.numeric(data_EXUS$Weight)
-data_EIMI$Effective_Weight <- as.numeric(data_EIMI$PTF_Weight) * as.numeric(data_EIMI$Weight)
-data_IWSZ$Effective_Weight <- as.numeric(data_IWSZ$PTF_Weight) * as.numeric(data_IWSZ$Weight)
-
-
-# Creation of the main dataframe
-portfolio <- ""
-columns <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "EffectiveWeight")
-portfolio = data.frame(matrix(nrow = 0, ncol = length(columns))) 
-colnames(portfolio) <- columns
-
-# Appending each ETF into the global dataframe
-portfolio <- rbind(portfolio,data_XDEW)
-portfolio <- rbind(portfolio,data_IUSN)
-portfolio <- rbind(portfolio,data_EXUS)
-portfolio <- rbind(portfolio,data_EIMI)
-portfolio <- rbind(portfolio,data_IWSZ)
 
 # Formatting the Name of the Countries
 portfolio$Country <- ifelse (portfolio$Country == "Stati Uniti d'America", "Stati Uniti", portfolio$Country)
@@ -286,6 +164,14 @@ portfolio$Industry <- as.factor(portfolio$Industry)
 portfolio$MacroArea <- as.factor(portfolio$MacroArea)
 
 summary (portfolio)
+
+
+portfolio <- portfolio %>%
+  group_by(ETF) %>%
+  mutate(Weight_A = Weight / unique(sum(Weight, na.rm = TRUE))) %>%
+  ungroup()
+
+portfolio$Effective_Weight <- portfolio$Weight_A * portfolio$PTF_Weight
 
 
 
