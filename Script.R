@@ -25,23 +25,27 @@ rm (list = ls()) # cleans up objects in the environment
 
 
 # URL del file Excel dei datasets
+# Azionari
 url1 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BLNMYC90/" #XDEW
 url2 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund" #IUSN
 url3 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE0006WW1TQ4/" #EXUS
 url4 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/264659/ishares-msci-emerging-markets-imi-ucits-etf/1538022822418.ajax?fileType=xls&fileName=iShares-Core-MSCI-EM-IMI-UCITS-ETF-USD-Acc_fund&dataType=fund" #EIMI
 url5 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/270057/ishares-msci-world-size-factor-ucits-etf/1538022822418.ajax?fileType=xls&fileName=IWSZ&dataType=fund" # IWSZ
+# Obbligazionari  
+url6 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/291770/fund/1538022822418.ajax?fileType=xls&fileName=iShares-Core-Global-Aggregate-Bond-UCITS-ETF-EUR-Hedged-Acc_fund&dataType=fund" #AGGH
 
-urls <- c(url1, url2, url3, url4, url5)
-skip_rows <- c(3,7,3,7,7) #each xls has a different number of rows to be skipped when opened 
-keep_columns <- list(c(2,4,5,10,11),c(2,3,6,10,12),c(2,4,5,10,11), c(2,3,6,10,12), c(2,3,6,10,12))
-etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ")
-etf_weights <- c(0.25,0.10,0.37,0.15,0.13)
-columns_name <- list(c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
-                  c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
-                  c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
-                  c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
-                  c("Name","Industry","Weight","Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"))
-
+urls <- c(url1, url2, url3, url4, url5, url6)
+skip_rows <- c(3,7,3,7,7,7) #each xls has a different number of rows to be skipped when opened 
+keep_columns <- list(c(2,4,5,7,10,11),c(2,3,4,6,10,12),c(2,4,5,7,10,11), c(2,3,4,6,10,12), c(2,3,4,6,10,12),c(2,3,4,6,11,16))
+etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ", "AGGH")
+etf_weights <- c(0.25,0.0,0.30,0.13,0.15, 0.17)
+columns_name <- list(c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
+                  c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
+                  c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
+                  c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
+                  c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
+                  c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"))
+                  
 
 # Here we prepare the dataframe containing all data necessary to download the files
 df_urls = data.frame (url = urls,
@@ -55,7 +59,7 @@ df_urls$column_name <- columns_name
 
 # portfolio will contain the consolidated data, from all ETFs
 portfolio <- ""
-columns <- c("Name","Country","Currency","Industry", "Weight", "ETF", "PTF_Weight", "EffectiveWeight")
+columns <- c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "EffectiveWeight")
 portfolio = data.frame(matrix(nrow = 0, ncol = length(columns))) 
 colnames(portfolio) <- columns
 
@@ -139,7 +143,7 @@ portfolio <- portfolio %>%
     Country == "Cina" ~ "Cina",
     TRUE ~ "Developing"
   )
-  )
+)
 
 
 # Formatting the Industry
@@ -155,6 +159,17 @@ portfolio$Industry <- ifelse (portfolio$Industry == "Beni voluttuari", "Consumi 
 portfolio$Industry <- ifelse (portfolio$Industry == "Imprese di servizi di pubblica utilità", "Utilities", portfolio$Industry)
 portfolio$Industry <- ifelse (portfolio$Industry == "Servizi di pubblica utilità", "Utilities", portfolio$Industry)
 
+# Formatting the Asset Class
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Azioni", "Azionario", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Future", "Other", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Futures", "Other", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Cash", "Other", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Contanti", "Other", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "FX", "Other", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Money Market", "Other", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Cash Collateral and Margins", "Other", portfolio$Asset_Class)
+
+
 # Trasformation of character data into Factors or Numbers, where it makes sense
 portfolio$Country <- as.factor(portfolio$Country)
 portfolio$Currency <- as.factor (portfolio$Currency)
@@ -162,6 +177,7 @@ portfolio$Weight <- as.numeric (portfolio$Weight)
 portfolio$ETF <- as.factor(portfolio$ETF)
 portfolio$Industry <- as.factor(portfolio$Industry)
 portfolio$MacroArea <- as.factor(portfolio$MacroArea)
+portfolio$Asset_Class <-as.factor(portfolio$Asset_Class)
 
 summary (portfolio)
 
@@ -173,7 +189,11 @@ portfolio <- portfolio %>%
 
 portfolio$Effective_Weight <- portfolio$Weight_A * portfolio$PTF_Weight
 
+portfolio %>%
+  group_by(ETF) %>%
+  summarize (w = sum (Weight_A, na.rm = T), t = sum (Effective_Weight, na.rm = T))
 
+summary (portfolio)             
 
 # F. Analysis ------------------------------------------------------------------
 portfolio %>%
@@ -294,6 +314,26 @@ portfolio %>%
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
 
 
+
+#####
+# ASSET CLASS
+portfolio %>%
+  group_by (Asset_Class) %>%
+  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
+  arrange(desc(total), by_group = TRUE) %>%
+  ggplot (aes (x = reorder (Asset_Class, -total), y = total, fill = Asset_Class)) +
+  geom_bar(stat = "identity") +
+  geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
+
+
+
+
+
+
+
+
 ##### --------------------------------------------------------------------------
 # Examples of double entry tables - experimental
 a <- portfolio %>%
@@ -307,7 +347,7 @@ a
 
 xtabs (round (Effective_Weight, digits = 3) ~ MacroArea + Industry, data = portfolio)
 
-install.packages("janitor")
+#install.packages("janitor")
 library(janitor)
 library(scales)
 
@@ -319,7 +359,7 @@ df_pivot <- portfolio %>%
   mutate(across(where(is.numeric), ~ percent(round(., 2))))
 
 print(df_pivot)
-view(df_pivot)
+#view(df_pivot)
 
 
 ##### Retrieve Historical data for simulations ---------------------------------
