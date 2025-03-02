@@ -438,14 +438,14 @@ df_Currencies %>%
 library(rvest)
 
 # URL dell'ETF su Morningstar (sostituisci con l'ETF che ti interessa)
-url <- "https://www.morningstar.it/it/etf/snapshot/snapshot.aspx?id=0P0000NGM7"
+url <- "https://tools.morningstar.co.uk/uk/xray/default.aspx?LanguageId=en-GB&PortfolioType=2&SecurityTokenList=F00000ZN35]2]0]FOGBR$$ALL,FOCHI$$ONS&values=100.00&CurrencyId=GBP&from=editholding"
 
 # Scarica la pagina HTML
 pagina <- read_html(url)
 
 # Estrai il valore del P/E ratio
 pe_ratio <- pagina %>%
-  html_nodes(xpath = "//td[contains(text(), 'Rapporto P/U')]//following-sibling::td") %>%
+  html_nodes(xpath = "//td[contains(text(), 'Price/Earnings Ratio')]//following-sibling::td") %>%
   html_text() %>%
   trimws()
 
@@ -453,4 +453,25 @@ pe_ratio <- pagina %>%
 print(paste("P/E Ratio:", pe_ratio))
 
 
-  
+
+library(rvest)
+
+url <- "https://tools.morningstar.co.uk/it/xray/default.aspx?LanguageId=en-GB&PortfolioType=2&SecurityTokenList=0P0001SY1G]2]0]ETALL$$ALL&values=100&CurrencyId=EUR&from=editholding"
+
+page <- read_html(url)
+
+# Estrarre il valore nella cella accanto a "Price/Earnings Ratio"
+pe_ratio <- page %>%
+  html_nodes(xpath = "//th[contains(text(), 'Price/Earnings Ratio')]/following-sibling::td") %>%
+  html_text() %>%
+  trimws() %>%
+  .[1]
+
+pb_ratio <- page %>%
+  html_nodes(xpath = "//th[contains(text(), 'Price/Book Ratio')]/following-sibling::td") %>%
+  html_text() %>%
+  trimws() %>%
+  .[1]
+
+print(as.numeric(pe_ratio))
+print(as.numeric(pb_ratio))
