@@ -196,6 +196,7 @@ portfolio %>%
 summary (portfolio)             
 
 # F. Analysis ------------------------------------------------------------------
+
 portfolio %>%
   group_by (Country) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
@@ -331,7 +332,58 @@ portfolio %>%
 
 
 
+#####
+# SINGLE ASSET
 
+# since the same company can appear in multiple ETFs I want to normalize / standardize the names before aggregating them
+library(stringdist)
+
+# Creiamo una funzione per trovare il nome più simile
+match_names <- function(name, name_list) {
+  distances <- stringdist::stringdist(name, name_list, method = "jw")  
+  name_list[which.min(distances)]  # Restituisce il nome più vicino
+}
+
+
+
+unique_names <- unique(portfolio$Name)
+portfolio$Name_Normalized <- sapply(portfolio$Name , match_names, name_list = unique_names)
+
+portfolio %>%
+  group_by (Name_Normalized) %>%
+  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
+  arrange(desc(total), by_group = TRUE) %>%
+  slice_head(n = 20)
+
+# concentrazione del portafoglio nei primi 20 titoli
+portfolio %>%
+  group_by (Name_Normalized) %>%
+  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
+  arrange(desc(total), by_group = TRUE) %>%
+  slice_head(n = 20) %>%
+  pull() %>%
+  sum()
+
+
+# analisi ABC
+portfolio %>%
+  group_by (Name_Normalized) %>%
+  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
+  arrange(desc(total), by_group = TRUE)
+  
+# grafico AGC  
+portfolio %>%
+  group_by(Name_Normalized) %>%
+  summarise(total = sum(Effective_Weight, na.rm = TRUE)) %>%
+  arrange(desc(total)) %>%
+  mutate(cum_sum = cumsum(total),  # Somma cumulata
+       rank = row_number()) %>%  # Posizione nel ranking
+  ggplot(aes(x = rank, y = cum_sum)) +
+  geom_line(size = 1, color = "blue") +
+  labs(title = "ABC Analysis",
+       x = "Numero di aziende",
+       y = "Percentuale cumulata (%)") +
+  theme_minimal()
 
 
 ##### --------------------------------------------------------------------------
@@ -342,7 +394,6 @@ a <- portfolio %>%
              Number = as.numeric(format (round(n(), digits = 3), digits = 2))
   ) %>%
   arrange (desc(Weight))
-a
 
 
 xtabs (round (Effective_Weight, digits = 3) ~ MacroArea + Industry, data = portfolio)
