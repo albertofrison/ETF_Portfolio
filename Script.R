@@ -376,12 +376,12 @@ portfolio %>%
   group_by(Name_Normalized) %>%
   summarise(total = sum(Effective_Weight, na.rm = TRUE)) %>%
   arrange(desc(total)) %>%
-  mutate(cum_sum = cumsum(total),  # Somma cumulata
-       rank = row_number()) %>%  # Posizione nel ranking
+  mutate(cum_sum = cumsum(total*100),  # Somma cumulata
+       rank = row_number()/n()*100) %>%  # Posizione nel ranking
   ggplot(aes(x = rank, y = cum_sum)) +
   geom_line(size = 1, color = "blue") +
   labs(title = "ABC Analysis",
-       x = "Numero di aziende",
+       x = "Ennesimo Titolo (%)",
        y = "Percentuale cumulata (%)") +
   theme_minimal()
 
