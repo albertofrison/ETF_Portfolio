@@ -482,6 +482,66 @@ df_Currencies %>%
   facet_wrap(~ Currency, nrow = 1)
 
 
+##### CURVE DEI RENDIMENTI -----------------------------------------------------
+# USD
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# URL del CSV
+url_csv <- "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2025/all?type=daily_treasury_yield_curve&field_tdr_date_value=2025&page&_format=csv"
+
+# Leggi il CSV
+yield_data <- read_csv(url_csv)
+
+# Converti Date in formato data
+yield_data <- yield_data %>% mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
+
+# Trasforma le colonne delle scadenze in righe (pivot_longer)
+data_long <- yield_data %>%
+  pivot_longer(cols = -Date, names_to = "Maturity", values_to = "Yield") %>%
+  filter(Maturity != "Date")  # Rimuove la colonna Date ripetuta
+
+# Pulizia nomi scadenze (es. "1 YR" -> "1Y", "10 YR" -> "10Y")
+data_long$Maturity <- gsub(" YR", "Y", data_long$Maturity)
+data_long$Maturity <- gsub(" MO", "M", data_long$Maturity)
+
+# Converte Maturity in fattore ordinato per il grafico
+data_long$Maturity <- factor(data_long$Maturity, levels = unique(data_long$Maturity))
+
+# Grafico della yield curve (selezionabile con facet_wrap)
+data_long %>%
+  filter (Date %in% c("2025-03-03", "2025-02-18")) %>%
+  mutate(Date = as.factor(Date)) %>%
+  ggplot(aes(x = Maturity, y = Yield, group = Date, color = Date)) +
+    geom_line(size = 1, alpha = 0.5) +
+    geom_point(size = 1) +
+    scale_color_manual(values = c("2025-03-03" = "blue", "2025-02-18" = "red")) + 
+    labs(title = "Yield Curve - USA Treasury", x = "Maturity", y = "Yield (%)") +
+    theme_minimal() 
+
+# EUR -- to do 
+url_csv_eur <- "https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A+G_N_C.SV_C_YM.?lastNObservations=1&format=csvdata"
+
+# Leggi il CSV
+yield_data_eur <- read_csv(url_csv_eur, skip = 5)  # Salta le prime righe descrittive
+
+# Seleziona solo le colonne necessarie
+yield_data_eur <- yield_data_eur %>%
+  select(`TIME_PERIOD`, `DATA_TYPE_FM`, `OBS_VALUE`) %>%
+  rename(Date = `TIME_PERIOD`, Maturity = `DATA_TYPE_FM`, Yield = `OBS_VALUE`)
+
+# Converte la data
+yield_data_eur <- yield_data_eur %>%
+  mutate(Date = as.Date(Date), Maturity = as.factor(Maturity))
+
+# Grafico Yield Curve EUR
+ggplot(yield_data_eur, aes(x = Maturity, y = Yield)) +
+  geom_line(size = 1, color = "blue") +
+  geom_point(size = 2, color = "red") +
+  labs(title = "Yield Curve - Eurozone (ECB)", x = "Maturity", y = "Yield (%)") +
+  theme_minimal()
 
 
 
