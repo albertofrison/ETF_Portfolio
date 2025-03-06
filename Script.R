@@ -2,7 +2,6 @@
 # R Project to better understand the composition of my  ETF Portfolio
 # I download the components of some ETFs listed in Xetra or Borsa Italiana from a number of providers (composing my Portfolio) such as iShares or Vanguard and I 
 # analyse them from the Market, Area, Sector, Currency, ... point of view and hopefully provide more insights.
-# For some reasons some XLS files need to be opened and saved in Excel prior opening them into R.
 # Created - February 2025
 
 
@@ -38,7 +37,7 @@ urls <- c(url1, url2, url3, url4, url5, url6)
 skip_rows <- c(3,7,3,7,7,7) #each xls has a different number of rows to be skipped when opened 
 keep_columns <- list(c(2,4,5,7,10,11),c(2,3,4,6,10,12),c(2,4,5,7,10,11), c(2,3,4,6,10,12), c(2,3,4,6,10,12),c(2,3,4,6,11,16))
 etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ", "AGGH")
-etf_weights <- c(0.25,0.0,0.30,0.13,0.15, 0.17)
+etf_weights <- c(0.25,0.05,0.30,0.10,0.10,0.20)
 columns_name <- list(c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
@@ -65,6 +64,7 @@ colnames(portfolio) <- columns
 
 
 # automated download of the excels and inclusion into the portfolio dataframe
+# warning - at least in my system Ubuntu + LibreOffice - you need to have Libre Office opened before downloading the files
 for (i in 1:nrow(df_urls)) {
   # Crea i file temporanei
   temp_file <- tempfile(fileext = ".xls")
@@ -102,6 +102,9 @@ portfolio$Country <- ifelse (portfolio$Country == "Stati Uniti d'America", "Stat
 portfolio$Country <- ifelse (portfolio$Country == "Paesi Bassi (Olanda)", "Olanda", ifelse (portfolio$Country == "Paesi Bassi", "Olanda", portfolio$Country))
 portfolio$Country <- ifelse (portfolio$Country == "Repubblica di Corea (Corea del Sud)", "Corea", portfolio$Country)
 portfolio$Country <- ifelse (portfolio$Country == "Regno Unito", "Regno unito", portfolio$Country)
+portfolio$Country <- ifelse (nchar(as.character(portfolio$Country)) <= 2, "Other", portfolio$Country)
+
+
 
 
 # Creating the MacroArea information 
@@ -244,11 +247,8 @@ portfolio %>%
        y ="% sul Portafoglio")
 
 
-portfolio %>%
-  group_by (Currency) %>%
-  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
-  arrange(desc(total), by_group = TRUE)
-
+# OFFICIAL INTEREST RATES ------------------------------------------------------
+# useful to try to understand how 
 # recupero i dati dal sito trading economics
 url <- "https://tradingeconomics.com/country-list/interest-rate"
 webpage <- read_html(url)
@@ -398,7 +398,6 @@ a <- portfolio %>%
 
 xtabs (round (Effective_Weight, digits = 3) ~ MacroArea + Industry, data = portfolio)
 
-#install.packages("janitor")
 library(janitor)
 library(scales)
 
@@ -543,7 +542,8 @@ ggplot(yield_data_eur, aes(x = Maturity, y = Yield)) +
   labs(title = "Yield Curve - Eurozone (ECB)", x = "Maturity", y = "Yield (%)") +
   theme_minimal()
 
-
+##### Historical PE RATIOS -----------------------------------------------------
+# to do
 
 ##### ALTRI ESPERIEMENTI PER SCARICARE DATI DEGLI ETF, COME IL PE --------------
 library(rvest)
