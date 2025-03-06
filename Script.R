@@ -161,6 +161,8 @@ portfolio$Industry <- ifelse (portfolio$Industry == "Sanità", "Salute", portfol
 portfolio$Industry <- ifelse (portfolio$Industry == "Beni voluttuari", "Consumi Discrezionali", portfolio$Industry)
 portfolio$Industry <- ifelse (portfolio$Industry == "Imprese di servizi di pubblica utilità", "Utilities", portfolio$Industry)
 portfolio$Industry <- ifelse (portfolio$Industry == "Servizi di pubblica utilità", "Utilities", portfolio$Industry)
+# note: some work should be done for the "Obbligazionario" as multiple and different industries are mentioned
+
 
 # Formatting the Asset Class
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Azioni", "Azionario", portfolio$Asset_Class)
@@ -291,15 +293,16 @@ portfolio %>%
 #####
 # INDUSTRY
 portfolio %>%
-  group_by (Industry) %>%
+  filter (Asset_Class %in% c("Azionario", "Obbligazionario")) %>%
+  group_by (Industry, Asset_Class) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
   ggplot (aes (x = reorder (Industry, -total), y = total, fill = Industry)) +
   geom_bar(stat = "identity") +
   geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
-
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none") +
+  facet_wrap(~ Asset_Class, nrow = 2)
 
 
 #####
@@ -326,7 +329,7 @@ portfolio %>%
   geom_bar(stat = "identity") +
   geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none") 
 
 
 
@@ -543,46 +546,93 @@ ggplot(yield_data_eur, aes(x = Maturity, y = Yield)) +
   theme_minimal()
 
 ##### Historical PE RATIOS -----------------------------------------------------
-# to do
-
-##### ALTRI ESPERIEMENTI PER SCARICARE DATI DEGLI ETF, COME IL PE --------------
 library(rvest)
 
-# URL dell'ETF su Morningstar (sostituisci con l'ETF che ti interessa)
-url <- "https://tools.morningstar.co.uk/uk/xray/default.aspx?LanguageId=en-GB&PortfolioType=2&SecurityTokenList=F00000ZN35]2]0]FOGBR$$ALL,FOCHI$$ONS&values=100.00&CurrencyId=GBP&from=editholding"
-
-# Scarica la pagina HTML
+# PE RATIO
+url <- "https://www.multpl.com/s-p-500-pe-ratio/table/by-month"
 pagina <- read_html(url)
+data <- pagina %>%
+  html_table()
 
-# Estrai il valore del P/E ratio
-pe_ratio <- pagina %>%
-  html_nodes(xpath = "//td[contains(text(), 'Price/Earnings Ratio')]//following-sibling::td") %>%
-  html_text() %>%
-  trimws()
+pe_ratio <- data.frame(data)
+pe_ratio_clean <- pe_ratio %>%
+  mutate (Date = mdy (Date), 
+          Value = as.numeric(gsub("[^0-9.]", "", Value)))
 
-# Mostra il P/E r
-print(paste("P/E Ratio:", pe_ratio))
+pe_ratio_clean$Date <- ceiling_date(pe_ratio_clean$Date, "month") - days(1)
+  
+
+# PRICE TO BOOK VALUE (QUARTERLY)
+url <- "https://www.multpl.com/s-p-500-price-to-book/table/by-quarter"
+pagina <- read_html(url)
+data <- pagina %>%
+  html_table()
+
+pb_ratio <- data.frame(data)
+pb_ratio_clean <- pb_ratio %>%
+  mutate (Date = mdy (Date), 
+          Value = as.numeric(gsub("[^0-9.]", "", Value)))
+pb_ratio_clean$Date <- ceiling_date(pb_ratio_clean$Date, "month") - days(1)
+
+# PRICE TO SALES (QUARTERLY)
+url <- "https://www.multpl.com/s-p-500-price-to-sales/table/by-quarter"
+pagina <- read_html(url)
+data <- pagina %>%
+  html_table()
+
+ps_ratio <- data.frame(data)
+ps_ratio_clean <- ps_ratio %>%
+  mutate (Date = mdy (Date), 
+          Value = as.numeric(gsub("[^0-9.]", "", Value)))
+ps_ratio_clean$Date <- ceiling_date(ps_ratio_clean$Date, "month") - days(1)
+
+# Unire i dataframe sulla base della data
+combined_ratios <- full_join(ps_ratio_clean, pb_ratio_clean, by = "Date", suffix = c("_PS", "_PB")) %>%
+  full_join(pe_ratio_clean, by = "Date") %>%
+  drop_na() %>%
+  rename (Value_PE = Value) %>%
+  mutate (Sales_to_Book = Value_PB / Value_PS,
+          Earnings_to_Book = Value_PB / Value_PE,
+          Earnings_to_Sales = Value_PS / Value_PE) %>%
+  pivot_longer(cols = c(Value_PB, Value_PS, Sales_to_Book, Earnings_to_Book, Earnings_to_Sales), names_to = "Metric", values_to = "Value")
 
 
+# Creare il grafico a linee
+ggplot(combined_ratios, aes(x = Date, y = Value, color = Metric)) +
+  geom_line(size = 1.2, alpha = 0.8) +
+  geom_point(size = 2, alpha = 0.8) +
+  labs(
+    title = "S&P 500 Price-to-Book & Price-to-Sales Ratios Over Time",
+    x = "Date",
+    y = "Ratio",
+    color = "Metric"
+  ) +
+  scale_color_manual(values = c("Value_PB" = "#0072B2", "Value_PS" = "#D55E00", "Sales_to_Book" = "#F5A321")) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_line(color = "grey80", linetype = "dashed"),
+    panel.grid.minor = element_blank())
 
-library(rvest)
 
-url <- "https://tools.morningstar.co.uk/it/xray/default.aspx?LanguageId=en-GB&PortfolioType=2&SecurityTokenList=0P0001SY1G]2]0]ETALL$$ALL&values=100&CurrencyId=EUR&from=editholding"
+---------
 
-page <- read_html(url)
+pe_ratio_clean %>%
+  ggplot(aes(x = Date, y = Value)) +
+  geom_line(color = "#0072B2", size = 1.2, alpha = 0.8) +  # Linea blu elegante
+  geom_point(color = "#D55E00", size = 2, alpha = 0.8) +  # Punti arancioni per evidenziare i dati
+  labs(
+    title = "S&P 500 Price/Earnings Ratio Over Time",
+    x = "Date",
+    y = "P/E Ratio"
+  ) +
+  theme_minimal(base_size = 14) +  # Stile minimal per un look professionale
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),  # Titolo centrato e in grassetto
+    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotazione delle date per leggibilità
+    panel.grid.major = element_line(color = "grey80", linetype = "dashed"),  # Griglia sottile
+    panel.grid.minor = element_blank()
+  )
 
-# Estrarre il valore nella cella accanto a "Price/Earnings Ratio"
-pe_ratio <- page %>%
-  html_nodes(xpath = "//th[contains(text(), 'Price/Earnings Ratio')]/following-sibling::td") %>%
-  html_text() %>%
-  trimws() %>%
-  .[1]
 
-pb_ratio <- page %>%
-  html_nodes(xpath = "//th[contains(text(), 'Price/Book Ratio')]/following-sibling::td") %>%
-  html_text() %>%
-  trimws() %>%
-  .[1]
-
-print(as.numeric(pe_ratio))
-print(as.numeric(pb_ratio))
