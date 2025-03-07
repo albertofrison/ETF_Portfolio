@@ -30,20 +30,25 @@ url2 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/
 url3 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE0006WW1TQ4/" #EXUS
 url4 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/264659/ishares-msci-emerging-markets-imi-ucits-etf/1538022822418.ajax?fileType=xls&fileName=iShares-Core-MSCI-EM-IMI-UCITS-ETF-USD-Acc_fund&dataType=fund" #EIMI
 url5 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/270057/ishares-msci-world-size-factor-ucits-etf/1538022822418.ajax?fileType=xls&fileName=IWSZ&dataType=fund" # IWSZ
+
 # Obbligazionari  
 url6 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/291770/fund/1538022822418.ajax?fileType=xls&fileName=iShares-Core-Global-Aggregate-Bond-UCITS-ETF-EUR-Hedged-Acc_fund&dataType=fund" #AGGH
 
-urls <- c(url1, url2, url3, url4, url5, url6)
-skip_rows <- c(3,7,3,7,7,7) #each xls has a different number of rows to be skipped when opened 
-keep_columns <- list(c(2,4,5,7,10,11),c(2,3,4,6,10,12),c(2,4,5,7,10,11), c(2,3,4,6,10,12), c(2,3,4,6,10,12),c(2,3,4,6,11,16))
-etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ", "AGGH")
-etf_weights <- c(0.25,0.05,0.30,0.10,0.10,0.20)
+#Azionario
+url7 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BL25JM42/"
+
+urls <- c(url1, url2, url3, url4, url5, url6, url7)
+skip_rows <- c(3,7,3,7,7,7,3) #each xls has a different number of rows to be skipped when opened 
+keep_columns <- list(c(2,4,5,7,10,11),c(2,3,4,6,10,12),c(2,4,5,7,10,11), c(2,3,4,6,10,12), c(2,3,4,6,10,12),c(2,3,4,6,11,16), c(2,4,5,7,10,11))
+etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ", "AGGH", "XDEV")
+etf_weights <- c(0.23,0.05,0.28,0.08,0.08,0.20,0.08)
 columns_name <- list(c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
-                  c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"))
+                  c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
+                  c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"))
                   
 
 # Here we prepare the dataframe containing all data necessary to download the files
@@ -290,6 +295,7 @@ df_interest_rates %>%
 #####
 # COUNTRY
 portfolio %>%
+  #filter (ETF == "XDEV") %>%
   group_by (Country) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
@@ -357,13 +363,13 @@ match_names <- function(name, name_list) {
   name_list[which.min(distances)]  # Restituisce il nome più vicino
 }
 
-?stringdist
 clean_portfolio_names <- str_trim(str_remove_all(portfolio$Name, "\\b(S.A.|/S|NON VOTING|NON VOTING  PRE|NON-V|NON-VOTING|PC|DR|A|B|C|CL A|CL B|CL C|FXD|PCL|AS|A.S|LLC|PLC|RegS|MTN|FXD-TO-FLT|FXD-FLT|FLAT|SA|SpA|INC|CORP|THE|CO|CLASS A|REG|AG REG|SE|LTD|SPA|NV|AB|CLASS B|AG|CLASS C|A/S|CLS A|CLS B|CLS C|144A|(FXD-FXN)|FXD-FRN|BV)\\b"))
 unique_names <- unique(clean_portfolio_names)
 
 portfolio$Name_Normalized <- sapply(portfolio$Name , match_names, name_list = unique_names)
 
 portfolio_aggregated <- portfolio %>%
+  filter (Asset_Class == "Azionario") %>%
   group_by (Name_Normalized) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
@@ -381,12 +387,14 @@ portfolio %>%
 
 # analisi ABC
 portfolio %>%
+  filter (Asset_Class == "Azionario") %>%
   group_by (Name_Normalized) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE)
   
 # grafico AGC  
 portfolio %>%
+  filter (Asset_Class == "Azionario") %>%
   group_by(Name_Normalized) %>%
   summarise(total = sum(Effective_Weight, na.rm = TRUE)) %>%
   arrange(desc(total)) %>%
@@ -537,24 +545,6 @@ data_long %>%
 # EUR -- to do 
 url_csv_eur <- "https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A+G_N_C.SV_C_YM.?lastNObservations=1&format=csvdata"
 
-# Leggi il CSV
-yield_data_eur <- read_csv(url_csv_eur, skip = 5)  # Salta le prime righe descrittive
-
-# Seleziona solo le colonne necessarie
-yield_data_eur <- yield_data_eur %>%
-  select(`TIME_PERIOD`, `DATA_TYPE_FM`, `OBS_VALUE`) %>%
-  rename(Date = `TIME_PERIOD`, Maturity = `DATA_TYPE_FM`, Yield = `OBS_VALUE`)
-
-# Converte la data
-yield_data_eur <- yield_data_eur %>%
-  mutate(Date = as.Date(Date), Maturity = as.factor(Maturity))
-
-# Grafico Yield Curve EUR
-ggplot(yield_data_eur, aes(x = Maturity, y = Yield)) +
-  geom_line(size = 1, color = "blue") +
-  geom_point(size = 2, color = "red") +
-  labs(title = "Yield Curve - Eurozone (ECB)", x = "Maturity", y = "Yield (%)") +
-  theme_minimal()
 
 ##### Historical PE RATIOS -----------------------------------------------------
 library(rvest)
@@ -647,3 +637,68 @@ pe_ratio_clean %>%
   )
 
 
+################################################################################
+# BACK TESTING SECTION
+################################################################################
+library(quantmod)
+library(tidyverse)
+library(PerformanceAnalytics)
+
+# Definizione degli ETF nel portafoglio e loro pesi
+etf_symbols <- c("XDEW.DE", "EXUS.L", "IWSZ.MI", "AGGH.MI", "XDEV.MI", "IUSN.DE", "EIMI.MI")
+etf_weights <- c(0.23, 0.28, 0.08, 0.20, 0.08, 0.05, 0.08)  # Pesi assegnati nel portafoglio
+ 
+# Scarica i dati storici da Yahoo Finance
+getSymbols(etf_symbols, src = "yahoo", from = "2000-01-01", to = Sys.Date())
+
+# Creazione di un dataframe con i prezzi di chiusura
+portfolio_prices <- do.call(merge, lapply(etf_symbols, function(x) Cl(get(x))))
+colnames(portfolio_prices) <- etf_symbols
+
+# Normalizzazione dei prezzi (base 100 all'inizio) gestendo NA
+portfolio_prices <- na.omit(portfolio_prices)  # Rimuove valori mancanti
+portfolio_returns <- sweep(portfolio_prices, 2, as.numeric(portfolio_prices[1, ]), FUN = "/") * 100
+
+# Calcolo del valore del portafoglio pesato
+portfolio_value <- portfolio_returns %*% etf_weights
+portfolio_df <- data.frame(Date = index(portfolio_prices), Portfolio_Value = as.vector(portfolio_value))
+
+# Grafico dell'andamento del portafoglio
+portfolio_df %>%
+  ggplot(aes(x = Date, y = Portfolio_Value)) +
+  geom_line(color = "blue", linewidth = 1) +
+  labs(title = "Backtest Storico del Portafoglio",
+       y = "Valore Normalizzato (Base 100)", x = "Data") +
+  theme_minimal()
+
+# Analisi della volatilità e statistiche di rischio
+portfolio_returns_daily <- na.omit(Return.calculate(portfolio_prices, method = "log"))
+
+# Metriche chiave
+portfolio_stats <- table.Stats(portfolio_returns_daily %*% etf_weights)
+print(portfolio_stats)
+
+# Drawdown massimo
+chart.Drawdown(portfolio_returns_daily %*% etf_weights, main = "Drawdown del Portafoglio")
+
+# Sharpe Ratio
+sharpe_ratio <- SharpeRatio(portfolio_returns_daily %*% etf_weights, Rf = 0.01/252, FUN = "StdDev")
+print(sharpe_ratio)
+
+# Confronto con il benchmark 60/40
+benchmark_data <- getSymbols(c("IWDA.AS", "AGGH.AS"), src = "yahoo", from = "2010-01-01", auto.assign = TRUE)
+benchmark_prices <- do.call(merge, lapply(c("IWDA.AS", "AGGH.AS"), function(x) Cl(get(x))))
+colnames(benchmark_prices) <- c("IWDA", "AGGH")
+benchmark_returns <- benchmark_prices / first(benchmark_prices) * 100
+benchmark_6040 <- benchmark_returns$IWDA * 0.6 + benchmark_returns$AGGH * 0.4
+benchmark_df <- data.frame(Date = index(benchmark_prices), Benchmark_60_40 = as.vector(benchmark_6040))
+
+# Merge e grafico comparativo
+comparison_data <- left_join(portfolio_df, benchmark_df, by = "Date")
+comparison_data %>%
+  pivot_longer(cols = c("Benchmark_60_40", "Portfolio_Value"), names_to = "Series", values_to = "Value") %>%
+  ggplot(aes(x = Date, y = Value, color = Series)) +
+  geom_line(size = 1) +
+  labs(title = "Confronto Portafoglio vs Benchmark 60/40",
+       y = "Indice Normalizzato (Base 100)", x = "Data") +
+  theme_minimal()
