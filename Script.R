@@ -173,6 +173,9 @@ portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Contanti", "Other", p
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "FX", "Other", portfolio$Asset_Class)
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Money Market", "Other", portfolio$Asset_Class)
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Cash Collateral and Margins", "Other", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Real Estate Investment Trust", "Other", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Depository Receipts", "Other", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Preferred Stock", "Obbligazionario", portfolio$Asset_Class)
 
 
 # Trasformation of character data into Factors or Numbers, where it makes sense
@@ -198,7 +201,14 @@ portfolio %>%
   group_by(ETF) %>%
   summarize (w = sum (Weight_A, na.rm = T), t = sum (Effective_Weight, na.rm = T))
 
+
 summary (portfolio)             
+
+
+# ##############################################################################
+# END OF DATA LOAD 
+# ##############################################################################
+
 
 # F. Analysis ------------------------------------------------------------------
 
@@ -347,12 +357,13 @@ match_names <- function(name, name_list) {
   name_list[which.min(distances)]  # Restituisce il nome più vicino
 }
 
+?stringdist
+clean_portfolio_names <- str_trim(str_remove_all(portfolio$Name, "\\b(S.A.|/S|NON VOTING|NON VOTING  PRE|NON-V|NON-VOTING|PC|DR|A|B|C|CL A|CL B|CL C|FXD|PCL|AS|A.S|LLC|PLC|RegS|MTN|FXD-TO-FLT|FXD-FLT|FLAT|SA|SpA|INC|CORP|THE|CO|CLASS A|REG|AG REG|SE|LTD|SPA|NV|AB|CLASS B|AG|CLASS C|A/S|CLS A|CLS B|CLS C|144A|(FXD-FXN)|FXD-FRN|BV)\\b"))
+unique_names <- unique(clean_portfolio_names)
 
-
-unique_names <- unique(portfolio$Name)
 portfolio$Name_Normalized <- sapply(portfolio$Name , match_names, name_list = unique_names)
 
-portfolio %>%
+portfolio_aggregated <- portfolio %>%
   group_by (Name_Normalized) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
