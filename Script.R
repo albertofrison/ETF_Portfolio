@@ -369,7 +369,7 @@ unique_names <- unique(clean_portfolio_names)
 portfolio$Name_Normalized <- sapply(portfolio$Name , match_names, name_list = unique_names)
 
 portfolio_aggregated <- portfolio %>%
-  filter (Asset_Class == "Azionario") %>%
+  filter (Asset_Class %in% c("Obbligazionario", "Other")) %>%
   group_by (Name_Normalized) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
@@ -380,7 +380,7 @@ portfolio %>%
   group_by (Name_Normalized) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
-  slice_head(n = 20) %>%
+  slice_head(n = 100) %>%
   pull() %>%
   sum()
 
@@ -392,20 +392,55 @@ portfolio %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE)
   
-# grafico AGC  
+# # grafico AGC  
+# portfolio %>%
+# #  filter (Asset_Class == "Azionario") %>%
+#   group_by(Name_Normalized) %>%
+#   summarise(total = sum(Effective_Weight, na.rm = TRUE)) %>%
+#   arrange(desc(total)) %>%
+#   mutate(cum_sum = cumsum(total*100),  # Somma cumulata
+#        rank = row_number()/n()*100) %>%  # Posizione nel ranking
+#   ggplot(aes(x = rank, y = cum_sum)) +
+#   geom_line(size = 1, color = "blue") +
+#   labs(title = "ABC Analysis",
+#        x = "Ennesimo Titolo (%)",
+#        y = "Percentuale cumulata (%)") +
+#   theme_minimal()
+
 portfolio %>%
-  filter (Asset_Class == "Azionario") %>%
+  # filter(Asset_Class == "Azionario") %>%
   group_by(Name_Normalized) %>%
   summarise(total = sum(Effective_Weight, na.rm = TRUE)) %>%
   arrange(desc(total)) %>%
-  mutate(cum_sum = cumsum(total*100),  # Somma cumulata
-       rank = row_number()/n()*100) %>%  # Posizione nel ranking
+  mutate(cum_sum = cumsum(total * 100),  
+         rank = row_number() / n() * 100) %>%  
   ggplot(aes(x = rank, y = cum_sum)) +
-  geom_line(size = 1, color = "blue") +
-  labs(title = "ABC Analysis",
-       x = "Ennesimo Titolo (%)",
-       y = "Percentuale cumulata (%)") +
-  theme_minimal()
+  
+  # Linea con gradiente di colore
+  geom_line(size = 1.5, color = "#0073C2") +  
+  #geom_point(color = "#D55E00", size = 1, alpha = 0.7) +  
+  
+  # Tema personalizzato
+  theme_minimal(base_family = "Arial") +  
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "#333333"),
+    axis.title = element_text(size = 14, face = "bold", color = "#333333"),
+    axis.text = element_text(size = 12, color = "#555555"),
+    panel.grid.major = element_line(color = "grey80", linetype = "dashed"),
+    panel.grid.minor = element_blank()
+  ) +
+  
+  # Titoli e label migliorati
+  labs(title = "ETF Portfolio - analisi di concentrazione",  
+       x = "Ennesimo Titolo (%)",  
+       y = "Percentuale cumulata (%)",
+       caption  = "Code by Alberto Frison available in GitHub - https://github.com/albertofrison/ETF_Portfolio") +  
+  
+  # Limiti per una migliore leggibilità
+  scale_x_continuous(expand = c(0, 0), limits = c(0, 110)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 110))
+
+
 
 
 ##### --------------------------------------------------------------------------
