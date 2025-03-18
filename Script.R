@@ -181,6 +181,8 @@ portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Cash Collateral and M
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Real Estate Investment Trust", "Other", portfolio$Asset_Class)
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Depository Receipts", "Other", portfolio$Asset_Class)
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Preferred Stock", "Obbligazionario", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Fondi comuni", "Other", portfolio$Asset_Class)
+
 
 
 # Trasformation of character data into Factors or Numbers, where it makes sense
@@ -295,15 +297,16 @@ df_interest_rates %>%
 #####
 # COUNTRY
 portfolio %>%
-  #filter (ETF == "XDEV") %>%
-  group_by (Country) %>%
+  filter (Asset_Class != "Other") %>%
+  group_by (Country, Asset_Class) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
   ggplot (aes (x = reorder (Country, -total), y = total, fill = Country)) +
   geom_bar(stat = "identity") +
   geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none") +
+  facet_wrap(~ Asset_Class, nrow = 2)
 
 
 #####
@@ -377,6 +380,7 @@ portfolio_aggregated <- portfolio %>%
 
 # concentrazione del portafoglio nei primi 20 titoli
 portfolio %>%
+  filter (Asset_Class == "Azionario") %>%
   group_by (Name_Normalized) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
@@ -475,6 +479,7 @@ library (tidyverse)
 
 # scarico i dati storici da yahoo
 getSymbols(Symbols = c("^SPXEW", "^GSPC", "WSML.L"), src = "yahoo", from = "1900-01-01", to = Sys.Date())
+getSymbols(Symbols = c("^SPXEW", "^GSPC", "WSML.L"), src = "yahoo", from = "2024-01-01", to = Sys.Date())
 head (SPXEW)
 head(GSPC)
 head(WSML.L)
@@ -511,7 +516,8 @@ df_binded <- df_binded %>%
 df_binded %>%
   filter (Index %in% c("S&P 500 Market Weight Standard", "S&P 500 Equal Weight Standard")) %>%
   ggplot(aes (x = Date, y = Price, color = Index)) +
-  geom_line()
+  geom_line() +
+  theme (legend.position = "bottom")
 
 #### Fx Exchange Rates ---------------------------------------------------------
 # Exchange Rates are useful to understand wether to hedge or not the portfolio
@@ -568,12 +574,12 @@ data_long$Maturity <- factor(data_long$Maturity, levels = unique(data_long$Matur
 
 # Grafico della yield curve (selezionabile con facet_wrap)
 data_long %>%
-  filter (Date %in% c("2025-03-03", "2025-02-18")) %>%
+  filter (Date %in% c("2025-03-17", "2025-02-18")) %>%
   mutate(Date = as.factor(Date)) %>%
   ggplot(aes(x = Maturity, y = Yield, group = Date, color = Date)) +
     geom_line(size = 1, alpha = 0.5) +
     geom_point(size = 1) +
-    scale_color_manual(values = c("2025-03-03" = "blue", "2025-02-18" = "red")) + 
+    scale_color_manual(values = c("2025-03-17" = "blue", "2025-02-18" = "red")) + 
     labs(title = "Yield Curve - USA Treasury", x = "Maturity", y = "Yield (%)") +
     theme_minimal() 
 
@@ -657,7 +663,7 @@ ggplot(combined_ratios, aes(x = Date, y = Value, color = Metric)) +
 pe_ratio_clean %>%
   ggplot(aes(x = Date, y = Value)) +
   geom_line(color = "#0072B2", size = 1.2, alpha = 0.8) +  # Linea blu elegante
-  geom_point(color = "#D55E00", size = 2, alpha = 0.8) +  # Punti arancioni per evidenziare i dati
+  geom_point(color = "#D55E00", size = 1, alpha = 0.8) +  # Punti arancioni per evidenziare i dati
   labs(
     title = "S&P 500 Price/Earnings Ratio Over Time",
     x = "Date",
@@ -678,6 +684,7 @@ pe_ratio_clean %>%
 library(quantmod)
 library(tidyverse)
 library(PerformanceAnalytics)
+library(xts)
 
 # Definizione degli ETF nel portafoglio e loro pesi
 etf_symbols <- c("XDEW.DE", "EXUS.L", "IWSZ.MI", "AGGH.MI", "XDEV.MI", "IUSN.DE", "EIMI.MI")
@@ -710,14 +717,22 @@ portfolio_df %>%
 portfolio_returns_daily <- na.omit(Return.calculate(portfolio_prices, method = "log"))
 
 # Metriche chiave
-portfolio_stats <- table.Stats(portfolio_returns_daily %*% etf_weights)
-print(portfolio_stats)
+etf_weights <- matrix(etf_weights, ncol = 1)
+portfolio_returns_weighted <- as.data.frame(portfolio_returns_daily %*% etf_weights)
+
+# Supponiamo che portfolio_returns_daily abbia già un indice temporale
+dates <- index(portfolio_returns_daily)  # Prendiamo le date originali
+clean_returns_xts <- xts(clean_returns, order.by = dates)
+
+# Ora table.Stats dovrebbe funzionare
+portfolio_stats <- table.Stats(clean_returns_xts)
+
 
 # Drawdown massimo
-chart.Drawdown(portfolio_returns_daily %*% etf_weights, main = "Drawdown del Portafoglio")
+chart.Drawdown(clean_returns_xts, main = "Drawdown del Portafoglio")
 
 # Sharpe Ratio
-sharpe_ratio <- SharpeRatio(portfolio_returns_daily %*% etf_weights, Rf = 0.01/252, FUN = "StdDev")
+sharpe_ratio <- SharpeRatio(clean_returns_xts, Rf = 0.01/252, FUN = "StdDev")
 print(sharpe_ratio)
 
 # Confronto con il benchmark 60/40
