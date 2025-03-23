@@ -392,35 +392,47 @@ portfolio %>%
 # 0.1914502 @ 23/03/2025
 
 ################################################################################
-# creiamo una tabella che stratifichi la concentrazione ogni 10% di titoli
-# Filtra i titoli azionari
-portfolio_selected <- portfolio
-portfolio_selected <- portfolio %>% filter(Asset_Class == "Obbligazionario")
-# Calcola la somma dei pesi dei primi 'n' titoli azionari ordinati per peso decrescente
-n <- nrow(portfolio_selected)
+# Numero di titoli azionari e obbligazionari
+n_az <- nrow(portfolio %>% filter(Asset_Class == "Azionario"))
+n_ob <- nrow(portfolio %>% filter(Asset_Class == "Obbligazionario"))
 
-
-# Calcola la concentrazione per i percentuali da 10% a 100%
-concentrazione <- sapply(seq(0.1, 1, by = 0.1), function(p) {
-  n_top <- floor(p * n)  # Numero di titoli da includere per questa percentuale
-  portfolio_selected %>%
-    arrange(desc(Effective_Weight)) %>%
-    slice_head(n = n_top) %>%
-    summarise(concentrazione = sum(Effective_Weight, na.rm = TRUE)) %>%
+# Funzione per calcolare la concentrazione cumulata
+calcola_concentrazione <- function(df, n) {
+  df %>%
+    group_by(Name_Normalized) %>%
+    summarise(total = sum(Effective_Weight, na.rm = TRUE)) %>%
+    arrange(desc(total)) %>%
+    mutate(cum_sum = cumsum(total)) %>%
+    filter(row_number() <= n) %>%
+    summarise(concentrazione = max(cum_sum, na.rm = TRUE)) %>%
     pull(concentrazione)
-})
+}
 
-# Crea la tabella della concentrazione
-concentrazione_tabella <- data.frame(
-  Percentuale = seq(10, 100, by = 10),
-  Concentrazione = concentrazione
+# Crea la tabella
+percentuali <- seq(1, 100, by = 1)
+tabella <- data.frame(
+  Percentuale = percentuali,
+  Obbligazionario = sapply(percentuali / 100 * n_ob, function(n) calcola_concentrazione(portfolio %>% filter(Asset_Class == "Obbligazionario"), round(n))),
+  Azionario = sapply(percentuali / 100 * n_az, function(n) calcola_concentrazione(portfolio %>% filter(Asset_Class == "Azionario"), round(n)))
 )
 
-plot (concentrazione_tabella)
-?plot
+# Colonna totale che deve arrivare al 100%
+tabella$Totale <- tabella$Obbligazionario + tabella$Azionario
 
-# Visualizza la tabella
-print(concentrazione_tabella)
+# Stampa la tabella
+print(tabella)
+
+# Creazione del plot ABC
+ggplot(tabella, aes(x = Percentuale)) +
+  geom_line(aes(y = Obbligazionario, color = "Obbligazionario"), size = 1.2) +
+  geom_line(aes(y = Azionario, color = "Azionario"), size = 1.2) +
+  geom_line(aes(y = Totale, color = "Totale"), size = 1.2) +
+  labs(title = "Curva ABC della concentrazione del portafoglio",
+       x = "Percentuale di titoli considerati",
+       y = "Concentrazione cumulata",
+       color = "Asset Class") +
+  theme_minimal() +
+  scale_color_manual(values = c("Obbligazionario" = "blue", "Azionario" = "red", "Totale" = "black"))
 
 ################################################################################
 
