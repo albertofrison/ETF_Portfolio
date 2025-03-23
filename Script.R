@@ -12,7 +12,6 @@ library (readxl)
 library (rvest) 
 library (forcats)
 
-
 # C. INITIALIZATION / CLEANUP --------------------------------------------------
 rm (list = ls()) # cleans up objects in the environment
 
@@ -23,25 +22,26 @@ rm (list = ls()) # cleans up objects in the environment
 # while creating the dataframe we will convert the data in the correct class (character, integer, ...)
 
 
-# URL del file Excel dei datasets
+# URL del file Excel dei datasets ----------------------------------------------
 # Azionari
 url1 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BLNMYC90/" #XDEW
 url2 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund" #IUSN
 url3 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE0006WW1TQ4/" #EXUS
 url4 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/264659/ishares-msci-emerging-markets-imi-ucits-etf/1538022822418.ajax?fileType=xls&fileName=iShares-Core-MSCI-EM-IMI-UCITS-ETF-USD-Acc_fund&dataType=fund" #EIMI
 url5 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/270057/ishares-msci-world-size-factor-ucits-etf/1538022822418.ajax?fileType=xls&fileName=IWSZ&dataType=fund" # IWSZ
-
 # Obbligazionari  
 url6 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/291770/fund/1538022822418.ajax?fileType=xls&fileName=iShares-Core-Global-Aggregate-Bond-UCITS-ETF-EUR-Hedged-Acc_fund&dataType=fund" #AGGH
-
 #Azionario
 url7 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BL25JM42/"
+#-------------------------------------------------------------------------------
 
-urls <- c(url1, url2, url3, url4, url5, url6, url7)
+#-------------------------------------------------------------------------------
+# preparation of the parameters for automated load of the portfolio data
+urls <- c(url1, url2, url3, url4, url5, url6, url7) # list of urls
 skip_rows <- c(3,7,3,7,7,7,3) #each xls has a different number of rows to be skipped when opened 
-keep_columns <- list(c(2,4,5,7,10,11),c(2,3,4,6,10,12),c(2,4,5,7,10,11), c(2,3,4,6,10,12), c(2,3,4,6,10,12),c(2,3,4,6,11,16), c(2,4,5,7,10,11))
-etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ", "AGGH", "XDEV")
-etf_weights <- c(0.23,0.05,0.28,0.08,0.08,0.20,0.08)
+keep_columns <- list(c(2,4,5,7,10,11),c(2,3,4,6,10,12),c(2,4,5,7,10,11), c(2,3,4,6,10,12), c(2,3,4,6,10,12),c(2,3,4,6,11,16), c(2,4,5,7,10,11)) # each issuer has a different xls structure
+etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ", "AGGH", "XDEV") # names of the ETFs
+etf_weights <- c(0.23,0.05,0.28,0.08,0.08,0.20,0.08) # weight in my portfolio
 columns_name <- list(c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
@@ -57,6 +57,7 @@ df_urls = data.frame (url = urls,
                       etf_name = etf_names,
                       etf_weight = etf_weights,
                       stringsAsFactors = FALSE)  
+
 df_urls$keep_column <- keep_columns  
 df_urls$column_name <- columns_name 
 
@@ -67,9 +68,8 @@ columns <- c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ET
 portfolio = data.frame(matrix(nrow = 0, ncol = length(columns))) 
 colnames(portfolio) <- columns
 
-
 # automated download of the excels and inclusion into the portfolio dataframe
-# warning - at least in my system Ubuntu + LibreOffice - you need to have Libre Office opened before downloading the files
+# WARNING: at least in my system Ubuntu + LibreOffice - you need to have Libre Office opened before downloading the files
 for (i in 1:nrow(df_urls)) {
   # Crea i file temporanei
   temp_file <- tempfile(fileext = ".xls")
@@ -88,7 +88,6 @@ for (i in 1:nrow(df_urls)) {
   # Leggere il file Excel convertito
   df <- try(read_xlsx(converted_file, skip = df_urls$skip_row[i]), silent = TRUE)
   
-
   df <- df[df_urls$keep_column[[i]]]
   df$ETF <- df_urls$etf_name[i]
   df$PTF_W <- df_urls$etf_weight[i]
@@ -100,17 +99,17 @@ for (i in 1:nrow(df_urls)) {
   portfolio <- rbind(portfolio,df)
 
 }
+################################################################################
+# All data is now loaded, starting to clean the data
 
-
+################################################################################
+# DATA CLEANING
 # Formatting the Name of the Countries
 portfolio$Country <- ifelse (portfolio$Country == "Stati Uniti d'America", "Stati Uniti", portfolio$Country)
 portfolio$Country <- ifelse (portfolio$Country == "Paesi Bassi (Olanda)", "Olanda", ifelse (portfolio$Country == "Paesi Bassi", "Olanda", portfolio$Country))
 portfolio$Country <- ifelse (portfolio$Country == "Repubblica di Corea (Corea del Sud)", "Corea", portfolio$Country)
 portfolio$Country <- ifelse (portfolio$Country == "Regno Unito", "Regno unito", portfolio$Country)
 portfolio$Country <- ifelse (nchar(as.character(portfolio$Country)) <= 2, "Other", portfolio$Country)
-
-
-
 
 # Creating the MacroArea information 
 portfolio <- portfolio %>%
@@ -182,7 +181,7 @@ portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Real Estate Investmen
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Depository Receipts", "Other", portfolio$Asset_Class)
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Preferred Stock", "Obbligazionario", portfolio$Asset_Class)
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Fondi comuni", "Other", portfolio$Asset_Class)
-
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Forwards", "Other", portfolio$Asset_Class)
 
 
 # Trasformation of character data into Factors or Numbers, where it makes sense
@@ -194,9 +193,7 @@ portfolio$Industry <- as.factor(portfolio$Industry)
 portfolio$MacroArea <- as.factor(portfolio$MacroArea)
 portfolio$Asset_Class <-as.factor(portfolio$Asset_Class)
 
-summary (portfolio)
-
-
+# Calculating exact, correct weight for each asset in the portfolios
 portfolio <- portfolio %>%
   group_by(ETF) %>%
   mutate(Weight_A = Weight / unique(sum(Weight, na.rm = TRUE))) %>%
@@ -208,7 +205,6 @@ portfolio %>%
   group_by(ETF) %>%
   summarize (w = sum (Weight_A, na.rm = T), t = sum (Effective_Weight, na.rm = T))
 
-
 summary (portfolio)             
 
 
@@ -217,8 +213,11 @@ summary (portfolio)
 # ##############################################################################
 
 
-# F. Analysis ------------------------------------------------------------------
+################################################################################
+# START OF ANALYSIS
+################################################################################
 
+# COUNTRY ----------------------------------------------------------------------
 portfolio %>%
   group_by (Country) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
@@ -354,7 +353,7 @@ portfolio %>%
 
 
 
-#####
+################################################################################
 # SINGLE ASSET
 
 # since the same company can appear in multiple ETFs I want to normalize / standardize the names before aggregating them
@@ -366,6 +365,7 @@ match_names <- function(name, name_list) {
   name_list[which.min(distances)]  # Restituisce il nome più vicino
 }
 
+# puliamo in nomi delle varie società da elementi come: INC, SPA, CLASSE A, etc, etc
 clean_portfolio_names <- str_trim(str_remove_all(portfolio$Name, "\\b(S.A.|/S|NON VOTING|NON VOTING  PRE|NON-V|NON-VOTING|PC|DR|A|B|C|CL A|CL B|CL C|FXD|PCL|AS|A.S|LLC|PLC|RegS|MTN|FXD-TO-FLT|FXD-FLT|FLAT|SA|SpA|INC|CORP|THE|CO|CLASS A|REG|AG REG|SE|LTD|SPA|NV|AB|CLASS B|AG|CLASS C|A/S|CLS A|CLS B|CLS C|144A|(FXD-FXN)|FXD-FRN|BV)\\b"))
 unique_names <- unique(clean_portfolio_names)
 
@@ -378,15 +378,52 @@ portfolio_aggregated <- portfolio %>%
   arrange(desc(total), by_group = TRUE) %>%
   slice_head(n = 20)
 
-# concentrazione del portafoglio nei primi 20 titoli
+# concentrazione del portafoglio nei primi x titoli
+x <- 898
+
 portfolio %>%
   filter (Asset_Class == "Azionario") %>%
   group_by (Name_Normalized) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
-  slice_head(n = 100) %>%
+  slice_head(n = x) %>%
   pull() %>%
   sum()
+# 0.1914502 @ 23/03/2025
+
+################################################################################
+# creiamo una tabella che stratifichi la concentrazione ogni 10% di titoli
+# Filtra i titoli azionari
+portfolio_selected <- portfolio
+portfolio_selected <- portfolio %>% filter(Asset_Class == "Obbligazionario")
+# Calcola la somma dei pesi dei primi 'n' titoli azionari ordinati per peso decrescente
+n <- nrow(portfolio_selected)
+
+
+# Calcola la concentrazione per i percentuali da 10% a 100%
+concentrazione <- sapply(seq(0.1, 1, by = 0.1), function(p) {
+  n_top <- floor(p * n)  # Numero di titoli da includere per questa percentuale
+  portfolio_selected %>%
+    arrange(desc(Effective_Weight)) %>%
+    slice_head(n = n_top) %>%
+    summarise(concentrazione = sum(Effective_Weight, na.rm = TRUE)) %>%
+    pull(concentrazione)
+})
+
+# Crea la tabella della concentrazione
+concentrazione_tabella <- data.frame(
+  Percentuale = seq(10, 100, by = 10),
+  Concentrazione = concentrazione
+)
+
+plot (concentrazione_tabella)
+?plot
+
+# Visualizza la tabella
+print(concentrazione_tabella)
+
+
+################################################################################
 
 
 # analisi ABC
@@ -412,8 +449,8 @@ portfolio %>%
 #   theme_minimal()
 
 portfolio %>%
-  # filter(Asset_Class == "Azionario") %>%
-  group_by(Name_Normalized) %>%
+  filter(Asset_Class == "Azionario") %>%
+  group_by(ETF, Name_Normalized) %>%
   summarise(total = sum(Effective_Weight, na.rm = TRUE)) %>%
   arrange(desc(total)) %>%
   mutate(cum_sum = cumsum(total * 100),  
@@ -442,7 +479,8 @@ portfolio %>%
   
   # Limiti per una migliore leggibilità
   scale_x_continuous(expand = c(0, 0), limits = c(0, 110)) +
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 110))
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 110)) +
+  facet_wrap(~ETF)
 
 
 
