@@ -422,7 +422,6 @@ plot (concentrazione_tabella)
 # Visualizza la tabella
 print(concentrazione_tabella)
 
-
 ################################################################################
 
 
