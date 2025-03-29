@@ -326,14 +326,16 @@ portfolio %>%
 #####
 # MACRO AREA
 portfolio %>%
-  group_by (MacroArea) %>%
+  filter (Asset_Class %in% c("Azionario", "Obbligazionario")) %>%
+  group_by (MacroArea, Asset_Class) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
   ggplot (aes (x = reorder (MacroArea, -total), y = total, fill = MacroArea)) +
   geom_bar(stat = "identity") +
   geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none")
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none") +
+  facet_wrap(~ Asset_Class, nrow = 2)
 
 
 
@@ -378,18 +380,55 @@ portfolio_aggregated <- portfolio %>%
   arrange(desc(total), by_group = TRUE) %>%
   slice_head(n = 20)
 
-# concentrazione del portafoglio nei primi x titoli
-x <- 898
+################################################################################
+# Concentrazione del Portafoglio stratificata per un numero di titoli x
 
-portfolio %>%
+# df coi risultati
+report <- data.frame (matrix (nrow = 0, ncol = 3), stringsAsFactors = FALSE)
+
+# calcolo quanti titoli azionari vi sono nel portafoglio
+per_i <- portfolio %>%
   filter (Asset_Class == "Azionario") %>%
   group_by (Name_Normalized) %>%
-  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
-  arrange(desc(total), by_group = TRUE) %>%
-  slice_head(n = x) %>%
-  pull() %>%
-  sum()
-# 0.1914502 @ 23/03/2025
+  nrow()
+
+
+# stabiliamo x sul numero dei titoli...
+per_i #8972 titoli al 29 marzo 2025
+
+# Stratificazione per gli i-esimi titoli
+x <- c(1,2,3,5,7,10,20,30,50,70,100,200,300,500,700,1000,2000,3000,5000,7000)
+
+# creazione del report
+for (i in c(1:length(x))) {
+
+  #concentrazione azionaria per il i-esimo titolo
+  res_i <- portfolio %>%
+    filter (Asset_Class == "Azionario") %>%
+    group_by (Name_Normalized) %>%
+    summarise (total = sum(Effective_Weight, na.rm = T)) %>%
+    arrange(desc(total), by_group = TRUE) %>%
+    slice_head(n = x[i]) %>%
+    pull() %>%
+    sum()
+  
+  # aggiunta al report di: iesimo titolo, % sul totale titoli, % di concentrazione
+  report <- rbind(report, c(as.numeric(x[i]),
+                            round(x[i]/per_i*100, 1),
+                            round(res_i*100, 1)))
+
+}
+# formattazione del dataframe
+colnames (report) <- c("N. Titoli", "% su Totale", "Concentrazione")
+report
+
+# Salvataggio in CSV per usi futuri
+filename <- paste ("data/report_", today(), ".csv", sep ="")
+write.csv (report, file = filename, append = FALSE, col.names = TRUE)
+
+################################################################################
+
+
 
 ################################################################################
 # Numero di titoli azionari e obbligazionari
