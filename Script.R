@@ -567,7 +567,7 @@ library (tidyverse)
 
 # scarico i dati storici da yahoo
 getSymbols(Symbols = c("^SPXEW", "^GSPC", "WSML.L"), src = "yahoo", from = "1900-01-01", to = Sys.Date())
-getSymbols(Symbols = c("^SPXEW", "^GSPC", "WSML.L"), src = "yahoo", from = "2024-01-01", to = Sys.Date())
+getSymbols(Symbols = c("^SPXEW", "^GSPC", "WSML.L"), src = "yahoo", from = "2025-01-01", to = Sys.Date())
 head (SPXEW)
 head(GSPC)
 head(WSML.L)
@@ -606,6 +606,33 @@ df_binded %>%
   ggplot(aes (x = Date, y = Price, color = Index)) +
   geom_line() +
   theme (legend.position = "bottom")
+
+####################### what is best?? market weight or equal weight? ##########
+
+max_mw <- df_binded %>%
+  filter (Index == "S&P 500 Market Weight Standard") %>%
+  filter (Date == max(Date)) %>%
+  pull (Price)
+
+min_mw <- df_binded %>%
+  filter (Index == "S&P 500 Market Weight Standard") %>%
+  filter (Date == min(Date)) %>%
+  pull (Price)
+
+max_ew <- df_binded %>%
+  filter (Index == "S&P 500 Equal Weight Standard") %>%
+  filter (Date == max(Date)) %>%
+  pull (Price)
+
+min_ew<- df_binded %>%
+  filter (Index == "S&P 500 Equal Weight Standard") %>%
+  filter (Date == min(Date)) %>%
+  pull (Price)
+
+max_mw
+max_ew
+
+
 
 #### Fx Exchange Rates ---------------------------------------------------------
 # Exchange Rates are useful to understand wether to hedge or not the portfolio
