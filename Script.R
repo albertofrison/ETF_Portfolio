@@ -182,6 +182,7 @@ portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Depository Receipts",
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Preferred Stock", "Obbligazionario", portfolio$Asset_Class)
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Fondi comuni", "Other", portfolio$Asset_Class)
 portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "Forwards", "Other", portfolio$Asset_Class)
+portfolio$Asset_Class <- ifelse (portfolio$Asset_Class == "diritti su operazioni societarie", "Other", portfolio$Asset_Class)
 
 
 # Trasformation of character data into Factors or Numbers, where it makes sense
@@ -264,7 +265,7 @@ portfolio %>%
        x = "Valuta",
        y ="% sul Portafoglio")
 
-
+################################################################################
 # OFFICIAL INTEREST RATES ------------------------------------------------------
 # useful to try to understand how 
 # recupero i dati dal sito trading economics
@@ -292,8 +293,10 @@ df_interest_rates %>%
   theme_minimal() +
   scale_fill_manual (values = c("clean_Last" = "blue", "clean_Previous" = "darkgreen"))
 
+################################################################################
 
-#####
+
+################################################################################
 # COUNTRY
 portfolio %>%
   filter (Asset_Class != "Other") %>%
@@ -307,8 +310,6 @@ portfolio %>%
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none") +
   facet_wrap(~ Asset_Class, nrow = 2)
 
-
-#####
 # INDUSTRY
 portfolio %>%
   filter (Asset_Class %in% c("Azionario", "Obbligazionario")) %>%
@@ -356,7 +357,7 @@ portfolio %>%
 
 
 ################################################################################
-# SINGLE ASSET
+# Concentrazione del Portafoglio stratificata per un numero di titoli x
 
 # since the same company can appear in multiple ETFs I want to normalize / standardize the names before aggregating them
 library(stringdist)
@@ -379,9 +380,6 @@ portfolio_aggregated <- portfolio %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
   slice_head(n = 20)
-
-################################################################################
-# Concentrazione del Portafoglio stratificata per un numero di titoli x
 
 # df coi risultati
 report <- data.frame (matrix (nrow = 0, ncol = 3), stringsAsFactors = FALSE)
@@ -428,9 +426,6 @@ write.csv (report, file = filename, append = FALSE, col.names = TRUE)
 
 ################################################################################
 
-
-
-################################################################################
 # Numero di titoli azionari e obbligazionari
 n_az <- nrow(portfolio %>% filter(Asset_Class == "Azionario"))
 n_ob <- nrow(portfolio %>% filter(Asset_Class == "Obbligazionario"))
@@ -473,10 +468,9 @@ ggplot(tabella, aes(x = Percentuale)) +
   theme_minimal() +
   scale_color_manual(values = c("Obbligazionario" = "blue", "Azionario" = "red", "Totale" = "black"))
 
+
 ################################################################################
-
-
-# analisi ABC
+# ulteriore alternativa per analisi ABC
 portfolio %>%
   filter (Asset_Class == "Azionario") %>%
   group_by (Name_Normalized) %>%
@@ -534,7 +528,7 @@ portfolio %>%
 
 
 
-
+################################################################################
 ##### --------------------------------------------------------------------------
 # Examples of double entry tables - experimental
 a <- portfolio %>%
@@ -561,13 +555,18 @@ print(df_pivot)
 #view(df_pivot)
 
 
-##### Retrieve Historical data for simulations ---------------------------------
+################################################################################
+# NOW SOME CHARTS FROM REAL MARKET DATA
+# Retrieve Historical data for simuations ---------------------------------
 library(quantmod)
 library (tidyverse)
 
+# data iniziale per lo scarico dati
+from_date <- "1900-01-01"
+
 # scarico i dati storici da yahoo
-getSymbols(Symbols = c("^SPXEW", "^GSPC", "WSML.L"), src = "yahoo", from = "1900-01-01", to = Sys.Date())
-getSymbols(Symbols = c("^SPXEW", "^GSPC", "WSML.L"), src = "yahoo", from = "2025-01-01", to = Sys.Date())
+getSymbols(Symbols = c("^SPXEW", "^GSPC", "WSML.L"), src = "yahoo", from = from_date, to = Sys.Date())
+getSymbols(Symbols = c("^SPXEW", "^GSPC", "WSML.L"), src = "yahoo", from = from_date, to = Sys.Date())
 head (SPXEW)
 head(GSPC)
 head(WSML.L)
@@ -577,7 +576,6 @@ head(WSML.L)
 df_SPXEW <- data.frame (Date = index(SPXEW), coredata(SPXEW))
 df_GSPC <- data.frame (Date = index(GSPC), coredata(GSPC))
 
-
 colnames(df_SPXEW) <- c ("Date", "Open", "High", "Low", "Close", "Volume", "Adjusted")
 colnames(df_GSPC) <- c ("Date", "Open", "High", "Low", "Close", "Volume", "Adjusted")
 
@@ -585,8 +583,9 @@ df_SPXEW$Index <- "S&P500 Equal Weight"
 df_GSPC$Index <- "S&P500 Market Weight"
 
 df_binded <- inner_join(df_SPXEW, df_GSPC, by = "Date", suffix = c("_SP500_EW", "_SP500_MW"))
-first_date <- min(df_binded$Date)
 
+# ottengo la prima data per cui i valori di entrambi gli indici sono disponibili
+first_date <- min(df_binded$Date)
 head(df_binded)
 
 df_binded <- df_binded %>%
@@ -603,9 +602,22 @@ df_binded <- df_binded %>%
 
 df_binded %>%
   filter (Index %in% c("S&P 500 Market Weight Standard", "S&P 500 Equal Weight Standard")) %>%
-  ggplot(aes (x = Date, y = Price, color = Index)) +
+  mutate(Index = recode(Index,
+                        "S&P 500 Market Weight Standard" = "Market Weight",
+                        "S&P 500 Equal Weight Standard" = "Equal Weight")) %>%
+  ggplot(aes(x = Date, y = Price, color = Index)) +
   geom_line() +
-  theme (legend.position = "bottom")
+  scale_x_date(breaks = scales::breaks_width("1 year"), minor_breaks = NULL, labels = scales::label_date("%Y")) +
+  scale_x_date(breaks = scales::breaks_width("5 years"), labels = scales::label_date("%Y"), guide = guide_axis(n.dodge = 2)) +
+  labs(
+    title = "Performance di S&P 500",
+    subtitle = "Confronto tra Market Weight ed Equal Weight",
+    caption = "Fonte: Dati di mercato",
+    x ="",
+    y = "Index"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
 
 ####################### what is best?? market weight or equal weight? ##########
 
@@ -629,8 +641,8 @@ min_ew<- df_binded %>%
   filter (Date == min(Date)) %>%
   pull (Price)
 
-max_mw
-max_ew
+max_mw /max_ew -1
+
 
 
 
