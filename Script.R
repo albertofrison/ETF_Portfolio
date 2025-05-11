@@ -33,22 +33,25 @@ url5 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/270057/ishar
 url6 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/291770/fund/1538022822418.ajax?fileType=xls&fileName=iShares-Core-Global-Aggregate-Bond-UCITS-ETF-EUR-Hedged-Acc_fund&dataType=fund" #AGGH
 #Azionario
 url7 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BL25JM42/"
+url8 <- "/home/alberto/Scaricati/ETF_Invesco - Export.xlsx"
+
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
 # preparation of the parameters for automated load of the portfolio data
-urls <- c(url1, url2, url3, url4, url5, url6, url7) # list of urls
-skip_rows <- c(3,7,3,7,7,7,3) #each xls has a different number of rows to be skipped when opened 
-keep_columns <- list(c(2,4,5,7,10,11),c(2,3,4,6,10,12),c(2,4,5,7,10,11), c(2,3,4,6,10,12), c(2,3,4,6,10,12),c(2,3,4,6,11,16), c(2,4,5,7,10,11)) # each issuer has a different xls structure
-etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ", "AGGH", "XDEV") # names of the ETFs
-etf_weights <- c(0.23,0.05,0.28,0.08,0.08,0.20,0.08) # weight in my portfolio
+urls <- c(url1, url2, url3, url4, url5, url6, url7, url8) # list of urls
+skip_rows <- c(3,7,3,7,7,7,3,0) #each xls has a different number of rows to be skipped when opened 
+keep_columns <- list(c(2,4,5,7,10,11),c(2,3,4,6,10,12),c(2,4,5,7,10,11), c(2,3,4,6,10,12), c(2,3,4,6,10,12),c(2,3,4,6,11,16), c(2,4,5,7,10,11), c(1,4,6,7,8,9)) # each issuer has a different xls structure
+etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ", "AGGH", "XDEV", "MWEQ") # names of the ETFs  
+etf_weights <- c(0.1875,0.1522,0.1267,0.0539,0.0539,0.0540,0.0355,0.3363) # weight in my portfolio
 columns_name <- list(c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
                   c("Name","Industry","Asset_Class","Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
-                  c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"))
+                  c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
+                  c("Name","Country","Currency","Industry", "Asset_Class","Weight", "ETF", "PTF_Weight", "Effective_Weight"))
                   
 
 # Here we prepare the dataframe containing all data necessary to download the files
@@ -71,11 +74,14 @@ colnames(portfolio) <- columns
 # automated download of the excels and inclusion into the portfolio dataframe
 # WARNING: at least in my system Ubuntu + LibreOffice - you need to have Libre Office opened before downloading the files
 for (i in 1:nrow(df_urls)) {
-  # Crea i file temporanei
+  
+    # Crea i file temporanei
   temp_file <- tempfile(fileext = ".xls")
   converted_file <- tempfile(fileext = ".xlsx")  # File finale in formato xlsx
   
   current_url <- df_urls$url[i]
+  
+  if (i != 8) {
   # Scaricare il file
   res <- GET(current_url, write_disk(temp_file, overwrite = TRUE), add_headers("User-Agent" = "Mozilla/5.0"))
   
@@ -87,6 +93,9 @@ for (i in 1:nrow(df_urls)) {
   
   # Leggere il file Excel convertito
   df <- try(read_xlsx(converted_file, skip = df_urls$skip_row[i]), silent = TRUE)
+  } else {
+    df <- try(read_xlsx(current_url, skip = df_urls$skip_row[i]), silent = TRUE)
+  }
   
   df <- df[df_urls$keep_column[[i]]]
   df$ETF <- df_urls$etf_name[i]
@@ -99,11 +108,11 @@ for (i in 1:nrow(df_urls)) {
   portfolio <- rbind(portfolio,df)
 
 }
+
 ################################################################################
 # All data is now loaded, starting to clean the data
 
-################################################################################
-# DATA CLEANING
+# DATA CLEANING ################################################################
 # Formatting the Name of the Countries
 portfolio$Country <- ifelse (portfolio$Country == "Stati Uniti d'America", "Stati Uniti", portfolio$Country)
 portfolio$Country <- ifelse (portfolio$Country == "Paesi Bassi (Olanda)", "Olanda", ifelse (portfolio$Country == "Paesi Bassi", "Olanda", portfolio$Country))
@@ -153,19 +162,58 @@ portfolio <- portfolio %>%
 )
 
 
-# Formatting the Industry
-portfolio$Industry <- ifelse (portfolio$Industry == "Finanziari", "Finanza", portfolio$Industry)
-portfolio$Industry <- ifelse (portfolio$Industry == "Tecnologia dell'informazione", "IT", portfolio$Industry)
-portfolio$Industry <- ifelse (portfolio$Industry == "Servizi di comunicazione", "Comunicazione", portfolio$Industry)
-portfolio$Industry <- ifelse (portfolio$Industry == "Immobili", "Immobiliare", portfolio$Industry)
-portfolio$Industry <- ifelse (portfolio$Industry == "Prodotti industriali", "Industriali", portfolio$Industry)
-portfolio$Industry <- ifelse (portfolio$Industry == "Altro", "Liquidità e/o derivati", portfolio$Industry)
-portfolio$Industry <- ifelse (portfolio$Industry == "Beni di prima necessità", "Generi di largo consumo", portfolio$Industry)
-portfolio$Industry <- ifelse (portfolio$Industry == "Sanità", "Salute", portfolio$Industry)
-portfolio$Industry <- ifelse (portfolio$Industry == "Beni voluttuari", "Consumi Discrezionali", portfolio$Industry)
-portfolio$Industry <- ifelse (portfolio$Industry == "Imprese di servizi di pubblica utilità", "Utilities", portfolio$Industry)
-portfolio$Industry <- ifelse (portfolio$Industry == "Servizi di pubblica utilità", "Utilities", portfolio$Industry)
-# note: some work should be done for the "Obbligazionario" as multiple and different industries are mentioned
+
+portfolio$Industry <- case_when(
+  # Tecnologia / IT
+  portfolio$Industry %in% c("Technology", "IT", "Tecnologia", "Tecnologia dell'informazione") ~ "IT",
+  
+  # Finanza
+  portfolio$Industry %in% c("Financial Services", "Finanza", "Società finanziarie", "Brokerage/Asset Managers/Exchanges", 
+                            "Financial Other", "Finanziari", "Assicurazioni") ~ "Finanza",
+  
+  # Sanità
+  portfolio$Industry %in% c("Healthcare", "Salute", "Sanità") ~ "Salute",
+  
+  # Comunicazioni
+  portfolio$Industry %in% c("Communication Services", "Comunicazione", "Comunicazioni", "Servizi di comunicazione") ~ "Comunicazione",
+  
+  # Consumi discrezionali
+  portfolio$Industry %in% c("Consumer Cyclical", "Consumi Discrezionali", "Beni di consumo ciclici", "Beni voluttuari") ~ "Consumi Discrezionali",
+  
+  # Consumi difensivi
+  portfolio$Industry %in% c("Consumer Defensive", "Consumer Non-Cyclical", "Generi di largo consumo", "Beni di prima necessità") ~ "Generi di largo consumo",
+  
+  # Industria
+  portfolio$Industry %in% c("Industrials", "Industriali", "Prodotti industriali", "Industrial Other", "Industrials", "Basic Industry") ~ "Industriali",
+  
+  # Materiali
+  portfolio$Industry %in% c("Basic Materials", "Materiali") ~ "Materiali",
+  
+  # Energia
+  portfolio$Industry %in% c("Energy", "Energia", "Gas Naturale") ~ "Energia",
+  
+  # Utilities
+  portfolio$Industry %in% c("Utilities", "Utility Other", "Elettrico", "Stranded Cost Utility", 
+                            "Imprese di servizi di pubblica utilità", "Servizi di pubblica utilità") ~ "Utilities",
+  
+  # Immobiliare
+  portfolio$Industry %in% c("Real Estate", "Immobiliare", "Immobili", "Certificato Immobiliare") ~ "Immobiliare",
+  
+  # Obbligazioni strutturate
+  portfolio$Industry %in% c("Agency Fixed Rate", "Buoni Del Tesoro", "Owned No Guarantee", "Mortgage Collateralized", 
+                            "Supranational", "Government Guaranteed", "Attività bancarie", "Local Authority", 
+                            "Sovrani", "Government Sponsored", "Non-Agency CMBS", "Agency CMBS", 
+                            "Hybrid Collateralized", "Public Sector Collateralized", "Whole Business") ~ "Obbligazioni strutturate",
+  
+  # Altro
+  portfolio$Industry %in% c("Altro", "Liquidità e/o derivati") ~ "Liquidità e/o derivati",
+  
+  # Casi ignoti
+  portfolio$Industry %in% c(NA, "<NA>", "unknown", "Non trovato") ~ "Ignoto",
+  
+  # Default: lascia invariato
+  TRUE ~ portfolio$Industry
+)
 
 
 # Formatting the Asset Class
@@ -311,18 +359,23 @@ portfolio %>%
   facet_wrap(~ Asset_Class, nrow = 2)
 
 # INDUSTRY
-portfolio %>%
-  filter (Asset_Class %in% c("Azionario", "Obbligazionario")) %>%
-  group_by (Industry, Asset_Class) %>%
-  summarise (total = sum(Effective_Weight, na.rm = T)) %>%
-  arrange(desc(total), by_group = TRUE) %>%
-  ggplot (aes (x = reorder (Industry, -total), y = total, fill = Industry)) +
-  geom_bar(stat = "identity") +
-  geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none") +
-  facet_wrap(~ Asset_Class, nrow = 2)
+library(forcats)
 
+plot_data <- portfolio %>%
+  filter(Asset_Class %in% c("Azionario", "Obbligazionario")) %>%
+  group_by(Industry, Asset_Class) %>%
+  summarise(total = sum(Effective_Weight, na.rm = TRUE), .groups = "drop") %>%
+  group_by(Asset_Class) %>%
+  mutate(Industry = fct_reorder(Industry, -total))  # ordina entro ciascun pannello
+
+ggplot(plot_data, aes(x = Industry, y = total, fill = Industry)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = format(round(total * 100, 2), digits = 2, scientific = FALSE)), 
+            vjust = -1, size = 3) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), 
+        legend.position = "none") +
+  facet_wrap(~ Asset_Class, scales = "free_x", nrow = 2)
 
 #####
 # MACRO AREA
@@ -392,7 +445,9 @@ per_i <- portfolio %>%
 
 
 # stabiliamo x sul numero dei titoli...
-per_i #8972 titoli al 29 marzo 2025
+per_i
+#8972 titoli al 29 marzo 2025
+#10306 al 11 maggio 
 
 # Stratificazione per gli i-esimi titoli
 x <- c(1,2,3,5,7,10,20,30,50,70,100,200,300,500,700,1000,2000,3000,5000,7000)
@@ -562,7 +617,7 @@ library(quantmod)
 library (tidyverse)
 
 # data iniziale per lo scarico dati
-from_date <- "1900-01-01"
+from_date <- "2024-01-01"
 
 # scarico i dati storici da yahoo
 getSymbols(Symbols = c("^SPXEW", "^GSPC", "WSML.L"), src = "yahoo", from = from_date, to = Sys.Date())
