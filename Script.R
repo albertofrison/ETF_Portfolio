@@ -314,37 +314,6 @@ portfolio %>%
        y ="% sul Portafoglio")
 
 ################################################################################
-# OFFICIAL INTEREST RATES ------------------------------------------------------
-# useful to try to understand how 
-# recupero i dati dal sito trading economics
-url <- "https://tradingeconomics.com/country-list/interest-rate"
-webpage <- read_html(url)
-table <- webpage %>%
-  html_element("table") %>%
-  html_table(fill = TRUE)
-
-# pulisco i dati e aggiusto il dataframe per il plotting
-df_interest_rates <- table %>%
-  select (Country, Last, Previous) %>%
-  filter (Country %in% c("United States", "Euro Area", "Japan", "United Kindgom", "Canada")) %>%
-  mutate (across(c(Last, Previous), ~  as.numeric(gsub("%", "", .)), .names = "clean_{.col}")) %>%
-  select (Country, clean_Last, clean_Previous) %>%
-  pivot_longer(cols = c("clean_Last", "clean_Previous"), names_to = "Period", values_to = "Rate")
-
-# plot dei chart
-df_interest_rates %>%
-  ggplot (aes(x = Country, y = Rate, fill = Period))+
-  geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = round (Rate, 2)), 
-            position = position_dodge(width = 0.8),
-            vjust = -0.5, size = 4) +
-  theme_minimal() +
-  scale_fill_manual (values = c("clean_Last" = "blue", "clean_Previous" = "darkgreen"))
-
-################################################################################
-
-
-################################################################################
 # COUNTRY
 portfolio %>%
   filter (Asset_Class != "Other") %>%
@@ -479,6 +448,51 @@ report
 filename <- paste ("data/report_", today(), ".csv", sep ="")
 write.csv (report, file = filename, append = FALSE, col.names = TRUE)
 
+
+
+# ------------------------------------------------------------------------------
+# Analisi dei file storici.
+
+# Imposta la cartella in cui si trovano i file
+file_path <- "/home/alberto/ETF_Portfolio/data"
+
+# Lista tutti i file .csv nella cartella
+file_names <- list.files(file_path, pattern = "*.csv", full.names = TRUE)
+
+# Funzione per importare i dati e aggiungere la colonna con la data
+import_data <- function(file_name) {
+  # Estrai la data dal nome del file
+  date_report <- sub(".*(\\d{4}-\\d{2}-\\d{2}).csv", "\\1", file_name)
+  
+  # Importa il file
+  data <- read.csv(file_name)
+  
+  # Aggiungi la colonna con la data
+  data$Data <- as.Date(date_report)
+  
+  return(data)
+}
+
+# Importa e unisci tutti i file in un unico dataframe
+df <- bind_rows(lapply(file_names, import_data))
+
+# Visualizza le prime righe del dataframe combinato
+head(df)
+
+colnames(df) <- c("Riga", "N. Titoli", "% su Totale", "Concentrazione", "Data")
+
+# Crea il grafico
+df %>% 
+  ggplot(aes(x = `N. Titoli`, y = Concentrazione, color = as.factor (Data))) +
+  geom_line() + 
+  labs(title = "Concentrazione rispetto al Numero Titoli", 
+  x = "Numero Titoli", 
+  y = "Concentrazione") +
+  theme_minimal()
+
+
+
+
 ################################################################################
 
 # Numero di titoli azionari e obbligazionari
@@ -609,6 +623,14 @@ df_pivot <- portfolio %>%
 print(df_pivot)
 #view(df_pivot)
 
+
+
+
+################################################################################
+################################################################################
+################################################################################
+################################################################################
+################################################################################
 
 ################################################################################
 # NOW SOME CHARTS FROM REAL MARKET DATA
@@ -934,3 +956,34 @@ comparison_data %>%
   labs(title = "Confronto Portafoglio vs Benchmark 60/40",
        y = "Indice Normalizzato (Base 100)", x = "Data") +
   theme_minimal()
+
+
+################################################################################
+# OFFICIAL INTEREST RATES ------------------------------------------------------
+# useful to try to understand how 
+# recupero i dati dal sito trading economics
+url <- "https://tradingeconomics.com/country-list/interest-rate"
+webpage <- read_html(url)
+table <- webpage %>%
+  html_element("table") %>%
+  html_table(fill = TRUE)
+
+# pulisco i dati e aggiusto il dataframe per il plotting
+df_interest_rates <- table %>%
+  select (Country, Last, Previous) %>%
+  filter (Country %in% c("United States", "Euro Area", "Japan", "United Kindgom", "Canada")) %>%
+  mutate (across(c(Last, Previous), ~  as.numeric(gsub("%", "", .)), .names = "clean_{.col}")) %>%
+  select (Country, clean_Last, clean_Previous) %>%
+  pivot_longer(cols = c("clean_Last", "clean_Previous"), names_to = "Period", values_to = "Rate")
+
+# plot dei chart
+df_interest_rates %>%
+  ggplot (aes(x = Country, y = Rate, fill = Period))+
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round (Rate, 2)), 
+            position = position_dodge(width = 0.8),
+            vjust = -0.5, size = 4) +
+  theme_minimal() +
+  scale_fill_manual (values = c("clean_Last" = "blue", "clean_Previous" = "darkgreen"))
+
+################################################################################
