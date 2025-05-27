@@ -2,11 +2,7 @@
 # Script_2.R - Analisi Avanzata Portafoglio ETF
 # ##############################################################################
 #
-# OBIETTIVO: Caricare i dati di composizione di un portafoglio ETF,
-#            pulirli, standardizzarli e condurre analisi visuali
-#            per comprendere l'esposizione per area, settore, valuta, ecc.
-#
-# Versione: 2.0
+# Version: 2.0
 # Data: 2025-05-27
 #
 # ##############################################################################
@@ -17,11 +13,11 @@
 # I download the components of some ETFs listed in Xetra or Borsa Italiana from a number of providers (composing my Portfolio) such as iShares or Vanguard and I
 # analyse them from the Market, Area, Sector, Currency, ... point of view and hopefully provide more insights.
 # Created - February 2025
+# Revised - May 2025
 
 
 # B. LIBRARIES -----------------------------------------------------------------
-# Carichiamo tutte le librerie necessarie per l'esecuzione dello script.
-# È buona pratica caricarle tutte all'inizio.
+# Librerie necessarie per l'esecuzione dello script.
 
 library(tidyverse)    # Collezione essenziale per manipolazione dati (dplyr) e grafici (ggplot2)
 library(httr)         # Per scaricare file da internet (richieste HTTP)
@@ -37,7 +33,6 @@ library(lubridate)    # Per lavorare con le date (utile se aggiungeremo analisi 
 
 # C. INITIALIZATION / CLEANUP --------------------------------------------------
 # Pulisce l'ambiente di lavoro da tutti gli oggetti preesistenti.
-# Utile per assicurarsi che lo script parta sempre da zero, evitando conflitti.
 rm (list = ls())
 
 
@@ -48,21 +43,31 @@ rm (list = ls())
 
 # URL del file Excel dei datasets ----------------------------------------------
 # Lista degli indirizzi web da cui scaricare i file Excel dei componenti ETF.
-# NOTA: url8 è un percorso locale, dovrà essere adattato se lo script viene
-#       eseguito su un altro computer.
+# NOTA: url8 è un percorso locale, per un ETF Invesco.
 
 # Azionari
-url1 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BLNMYC90/" #XDEW
-url2 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund" #IUSN
-url3 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE0006WW1TQ4/" #EXUS
-url4 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/264659/ishares-msci-emerging-markets-imi-ucits-etf/1538022822418.ajax?fileType=xls&fileName=iShares-Core-MSCI-EM-IMI-UCITS-ETF-USD-Acc_fund&dataType=fund" #EIMI
-url5 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/270057/ishares-msci-world-size-factor-ucits-etf/1538022822418.ajax?fileType=xls&fileName=IWSZ&dataType=fund" # IWSZ
+#XDEW
+url1 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BLNMYC90/" 
+#IUSN
+url2 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/296576/fund/1538022822418.ajax?fileType=xls&fileName=iShares-MSCI-World-Small-Cap-UCITS-ETF-USD-Acc_fund&dataType=fund" 
+#EXUS
+url3 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE0006WW1TQ4/" 
+#EIMI
+url4 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/264659/ishares-msci-emerging-markets-imi-ucits-etf/1538022822418.ajax?fileType=xls&fileName=iShares-Core-MSCI-EM-IMI-UCITS-ETF-USD-Acc_fund&dataType=fund" 
+#IWSZ
+url5 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/270057/ishares-msci-world-size-factor-ucits-etf/1538022822418.ajax?fileType=xls&fileName=IWSZ&dataType=fund" 
+
 # Obbligazionari
-url6 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/291770/fund/1538022822418.ajax?fileType=xls&fileName=iShares-Core-Global-Aggregate-Bond-UCITS-ETF-EUR-Hedged-Acc_fund&dataType=fund" #AGGH
+#AGGH
+url6 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/291770/fund/1538022822418.ajax?fileType=xls&fileName=iShares-Core-Global-Aggregate-Bond-UCITS-ETF-EUR-Hedged-Acc_fund&dataType=fund" 
+
 # Azionario
-url7 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BL25JM42/" #XDEV
-# Locale
-url8 <- "/home/alberto/Scaricati/20250527 - Invesco Export.xlsx" # Percorso locale!
+#XDEV
+url7 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BL25JM42/" 
+
+# File Locale
+#MWEQ
+url8 <- "/home/alberto/Scaricati/20250527 - Invesco Export.xlsx" 
 
 #-------------------------------------------------------------------------------
 # Preparazione dei parametri per il caricamento automatico.
@@ -78,8 +83,8 @@ skip_rows <- c(3, 7, 3, 7, 7, 7, 3, 0)
 keep_columns <- list(c(2, 4, 5, 7, 10, 11), c(2, 3, 4, 6, 10, 12), c(2, 4, 5, 7, 10, 11), c(2, 3, 4, 6, 10, 12), c(2, 3, 4, 6, 10, 12), c(2, 3, 4, 6, 11, 16), c(2, 4, 5, 7, 10, 11), c(1, 2, 3, 4, 5, 6))
 etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ", "AGGH", "XDEV", "MWEQ")
 etf_weights <- c(0.1875, 0.1522, 0.1267, 0.0539, 0.0539, 0.0540, 0.0355, 0.3363)
-# ATTENZIONE: La lista 'columns_name' deve avere 9 elementi per ogni ETF,
-#             perché aggiungeremo ETF, PTF_Weight e Effective_Weight.
+# ATTENZIONE: La lista 'columns_name' deve avere 9 elementi per ogni ETF, perché aggiungeremo ETF (il nome),
+#PTF_Weight (peso dell'ETF nel portafoglio e Effective_Weight (moltiplicazione tra PTF_Weight ed il Weight relativo di ogni asset in ogni ETF).
 columns_name <- list(c("Name", "Country", "Currency", "Asset_Class", "Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
                      c("Name", "Industry", "Asset_Class", "Weight", "Country", "Currency", "ETF", "PTF_Weight", "Effective_Weight"),
                      c("Name", "Country", "Currency", "Asset_Class", "Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
@@ -103,10 +108,11 @@ df_urls$column_name <- columns_name
 
 
 # Inizializziamo il dataframe 'portfolio' che conterrà tutti i dati consolidati.
-# Creiamo una struttura vuota con le colonne finali desiderate.
-columns <- c("Name", "Country", "Currency", "Asset_Class", "Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight")
 portfolio <- data.frame(matrix(nrow = 0, ncol = length(columns)))
-colnames(portfolio) <- columns # Assegniamo i nomi corretti alle colonne
+
+# Creiamo una struttura vuota con le colonne finali desiderate e assegniamo i nomi corretti alle colonne
+columns <- c("Name", "Country", "Currency", "Asset_Class", "Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight")
+colnames(portfolio) <- columns
 
 # Ciclo automatico per scaricare i file, convertirli e aggiungerli al dataframe.
 # Questo ciclo itera su ogni riga di df_urls (ogni ETF).
