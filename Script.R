@@ -33,7 +33,7 @@ url5 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/270057/ishar
 url6 <- "https://www.ishares.com/it/investitore-privato/it/prodotti/291770/fund/1538022822418.ajax?fileType=xls&fileName=iShares-Core-Global-Aggregate-Bond-UCITS-ETF-EUR-Hedged-Acc_fund&dataType=fund" #AGGH
 #Azionario
 url7 <- "https://etf.dws.com/etfdata/export/ITA/ITA/excel/product/constituent/IE00BL25JM42/"
-url8 <- "/home/alberto/Scaricati/ETF_Invesco - Export.xlsx"
+url8 <- "/home/alberto/Scaricati/20250527 - Invesco Export.xlsx"
 
 #-------------------------------------------------------------------------------
 
@@ -41,7 +41,7 @@ url8 <- "/home/alberto/Scaricati/ETF_Invesco - Export.xlsx"
 # preparation of the parameters for automated load of the portfolio data
 urls <- c(url1, url2, url3, url4, url5, url6, url7, url8) # list of urls
 skip_rows <- c(3,7,3,7,7,7,3,0) #each xls has a different number of rows to be skipped when opened 
-keep_columns <- list(c(2,4,5,7,10,11),c(2,3,4,6,10,12),c(2,4,5,7,10,11), c(2,3,4,6,10,12), c(2,3,4,6,10,12),c(2,3,4,6,11,16), c(2,4,5,7,10,11), c(1,4,6,7,8,9)) # each issuer has a different xls structure
+keep_columns <- list(c(2,4,5,7,10,11),c(2,3,4,6,10,12),c(2,4,5,7,10,11), c(2,3,4,6,10,12), c(2,3,4,6,10,12),c(2,3,4,6,11,16), c(2,4,5,7,10,11), c(1,2,3,4,5,6)) # each issuer has a different xls structure
 etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ", "AGGH", "XDEV", "MWEQ") # names of the ETFs  
 etf_weights <- c(0.1875,0.1522,0.1267,0.0539,0.0539,0.0540,0.0355,0.3363) # weight in my portfolio
 columns_name <- list(c("Name","Country","Currency","Asset_Class","Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
@@ -380,7 +380,6 @@ portfolio %>%
 
 ################################################################################
 # Concentrazione del Portafoglio stratificata per un numero di titoli x
-
 # since the same company can appear in multiple ETFs I want to normalize / standardize the names before aggregating them
 library(stringdist)
 
@@ -417,6 +416,7 @@ per_i <- portfolio %>%
 per_i
 #8972 titoli al 29 marzo 2025
 #10306 al 11 maggio 
+#10309 al 27 maggio
 
 # Stratificazione per gli i-esimi titoli
 x <- c(1,2,3,5,7,10,20,30,50,70,100,200,300,500,700,1000,2000,3000,5000,7000)
@@ -610,7 +610,9 @@ a <- portfolio %>%
 
 xtabs (round (Effective_Weight, digits = 3) ~ MacroArea + Industry, data = portfolio)
 
+install.packages("janitor")
 library(janitor)
+
 library(scales)
 
 df_pivot <- portfolio %>%
