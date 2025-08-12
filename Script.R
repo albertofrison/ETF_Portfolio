@@ -349,7 +349,7 @@ ggplot(plot_data, aes(x = Industry, y = total, fill = Industry)) +
 #####
 # MACRO AREA
 portfolio %>%
-  filter (Asset_Class %in% c("Azionario", "Obbligazionario")) %>%
+  #filter (Asset_Class %in% c("Azionario", "Obbligazionario")) %>%
   group_by (MacroArea, Asset_Class) %>%
   summarise (total = sum(Effective_Weight, na.rm = T)) %>%
   arrange(desc(total), by_group = TRUE) %>%
@@ -357,7 +357,7 @@ portfolio %>%
   geom_bar(stat = "identity") +
   geom_text (aes(label = format (round (total*100, digits = 2), digits = 2, scientific = FALSE) ),vjust = -1, size = 3) +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1), legend.position = "none") #+
   facet_wrap(~ Asset_Class, nrow = 2)
 
 

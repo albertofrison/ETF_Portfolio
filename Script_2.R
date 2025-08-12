@@ -76,7 +76,7 @@ urls <- c(url1, url2, url3, url4, url5, url6, url7, url8)
 skip_rows <- c(3, 7, 3, 7, 7, 7, 3, 0)
 keep_columns <- list(c(2, 4, 5, 7, 10, 11), c(2, 3, 4, 6, 10, 12), c(2, 4, 5, 7, 10, 11), c(2, 3, 4, 6, 10, 12), c(2, 3, 4, 6, 10, 12), c(2, 3, 4, 6, 11, 16), c(2, 4, 5, 7, 10, 11), c(1, 2, 3, 4, 5, 6))
 etf_names <- c("XDEW", "IUSN", "EXUS", "EIMI", "IWSZ", "AGGH", "XDEV", "MWEQ")
-etf_weights <- c(0.1875, 0.1522, 0.1267, 0.0539, 0.0539, 0.0540, 0.0355, 0.3363)
+etf_weights <- c(0.1847, 0.0420, 0.2315, 0.0665, 0.0653, 0.1584, 0.0676, 0.1840)
 # ATTENZIONE: La lista 'columns_name' deve avere 9 elementi per ogni ETF,
 #             perché aggiungeremo ETF, PTF_Weight e Effective_Weight.
 columns_name <- list(c("Name", "Country", "Currency", "Asset_Class", "Industry", "Weight", "ETF", "PTF_Weight", "Effective_Weight"),
@@ -343,7 +343,7 @@ print(plot1) # Mostra il grafico
 
 # alternativa , da un altro risultato
 portfolio %>%
-  #filter (Asset_Class %in% c("Azionario", "Obbligazionario")) %>%
+  filter(Effective_Weight > 0.0001) %>%
   group_by (MacroArea, Asset_Class) %>%
   summarise (total = sum(Effective_Weight, na.rm = T), .groups = 'drop' )  %>%
   arrange(desc(total), by_group = TRUE) %>%
