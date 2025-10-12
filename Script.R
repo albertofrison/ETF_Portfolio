@@ -3,6 +3,7 @@
 # I download the components of some ETFs listed in Xetra or Borsa Italiana from a number of providers (composing my Portfolio) such as iShares or Vanguard and I 
 # analyse them from the Market, Area, Sector, Currency, ... point of view and hopefully provide more insights.
 # Created - February 2025
+# Adapted for Windows - October 2025
 
 
 # B. LIBRARIES -----------------------------------------------------------------
