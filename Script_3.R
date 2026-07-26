@@ -19,7 +19,7 @@ gc() # Garbage Collection - pulisce la RAM
 
 # C. CARICAMENTO DATI ----------------------------------------------------------
 # 1. Definiamo la cartella in cui si trovano i file Excel
-folder_path <- "D:/Users/F29332B/Downloads/ETF" 
+folder_path <- "C:/Users/alber/Downloads/ETF" 
 
 # 2. Creiamo una lista con tutti i file Excel presenti in quella cartella
 file_list <- list.files(path = folder_path, pattern = "\\.xlsx?$", full.names = TRUE)
