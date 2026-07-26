@@ -519,7 +519,7 @@ library(gridExtra)
 library(grid)
 
 # 1. Definiamo dove salvare il PDF finale
-pdf_output_path <- "D:/Users/F29332B/Downloads/ETF/carousel_linkedin.pdf"
+pdf_output_path <- "C:/Users/alber/Downloads/ETF/carousel_linkedin.pdf"
 
 # 2. Apriamo il "dispositivo" PDF impostando dimensioni quadrate (10x10 pollici)
 # Questo creerà il formato 1:1 perfetto per il feed di LinkedIn
