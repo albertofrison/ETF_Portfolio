@@ -12,6 +12,7 @@ library(stringdist)   # Per confrontare e pulire i nomi delle azioni
 library(scales)       # Per formattare i numeri (es. percentuali)
 library(RColorBrewer) # Per avere palette di colori professionali
 library(lubridate)    # Per lavorare con le date
+library(treemapify)   # Per creare grafici a quadrati (Treemap)
 
 # B. PULIZIA DELL'AMBIENTE -----------------------------------------------------
 rm(list = ls()) # Cancelliamo tutto dalla memoria di R per partire da zero e non avere vecchi dati.
@@ -19,7 +20,7 @@ gc() # Garbage Collection - pulisce la RAM
 
 # C. CARICAMENTO DATI ----------------------------------------------------------
 # 1. Definiamo la cartella in cui si trovano i file Excel
-folder_path <- "C:/Users/alber/Downloads/ETF" 
+folder_path <- "D:/Users/F29332B/Downloads/ETF" 
 
 # 2. Creiamo una lista con tutti i file Excel presenti in quella cartella
 file_list <- list.files(path = folder_path, pattern = "\\.xlsx?$", full.names = TRUE)
@@ -357,26 +358,52 @@ print(plot3)
 
 
 # ##############################################################################
-# H. CALCOLO E NORMALIZZAZIONE DEI NOMI
+# H. CALCOLO E NORMALIZZAZIONE DEI NOMI (CON PARALLELIZZAZIONE SU 12 CORE)
 # ##############################################################################
+
+# Carichiamo la libreria nativa di R per il calcolo parallelo
+library(parallel)
 
 # 1. Definiamo la funzione di corrispondenza Jaro-Winkler
 match_names <- function(name, name_list) {
-  if (is.na(name)) return(NA)
+  if (is.na(name) || nchar(name) == 0) return(NA)
   distances <- stringdist::stringdist(tolower(name), tolower(name_list), method = "jw")
   name_list[which.min(distances)]
 }
 
-# 2. Espressione regolare per ripulire i suffissi societari e text spazzatura
-remove_pattern <- "\\b(s\\.a\\.|/s|non voting|non voting\\s+pre|non-v|non-voting|pc|dr|npv| a| b| c| cl a| cl b| cl c| fxd| pcl| as| a\\.s| llc| plc| regs| mtn| fxd-to-flt| fxd-flt| flat| sa| spa| inc| corp| the| co| class a| reg| ag reg| se| ltd| nv| ab| class b| ag| class c| a/s| cls a| cls b| cls c| 144a| \\(fxd-fxn\\)| fxd-frn| bv| ucits| etf| acc| dist|usd[0-9]+\\.[0-9]+)\\b"
+# 2. Espressione regolare per ripulire i suffissi societari e testo spazzatura
+remove_pattern <- "\\b(ord|ordinary|adr|s\\.a\\.|/s|non voting|non voting\\s+pre|non-v|non-voting|pc|dr|npv| a| b| c| cl a| cl b| cl c| fxd| pcl| as| a\\.s| llc| plc| regs| mtn| fxd-to-flt| fxd-flt| flat| sa| spa| inc| corp| the| co| class a| reg| ag reg| se| ltd| nv| ab| class b| ag| class c| a/s| cls a| cls b| cls c| 144a| \\(fxd-fxn\\)| fxd-frn| bv| ucits| etf| acc| dist|usd[0-9]+\\.[0-9]+)\\b"
 
 # 3. Pulizia e creazione dei nomi unici di confronto
-clean_names <- str_trim(str_remove_all(tolower(portfolio$Name), remove_pattern))
-unique_names <- unique(clean_names)
-unique_names <- unique_names[!is.na(unique_names)]
+clean_names <- portfolio$Name %>%
+  tolower() %>%
+  str_replace_all("[&\\+\\-\\.\\/]", " ") %>% 
+  str_remove_all(remove_pattern) %>%
+  str_squish()
 
-# 4. Calcoliamo la colonna Name_Normalized applicando la funzione
-portfolio$Name_Normalized <- sapply(clean_names, match_names, name_list = unique_names, USE.NAMES = FALSE)
+unique_names <- unique(clean_names)
+unique_names <- unique_names[!is.na(unique_names) & unique_names != ""]
+
+
+# 4. PROCESSO DI PARALLELIZZAZIONE (ACCENSIONE -> CALCOLO -> SPEGNIMENTO)
+print(">>> Avvio del calcolo parallelo su 12 core per la normalizzazione dei nomi...")
+
+# A. Definizione del numero di core e accensione del cluster
+num_cores <- 12
+cl <- makeCluster(num_cores)
+
+# B. Invio dei dati e delle librerie necessarie a ciascuno dei 12 core
+clusterExport(cl, varlist = c("match_names", "unique_names"), envir = environment())
+clusterEvalQ(cl, library(stringdist))
+
+# C. Esecuzione del calcolo in parallelo (sostituisce il vecchio sapply)
+portfolio$Name_Normalized <- parSapply(cl, clean_names, match_names, name_list = unique_names, USE.NAMES = FALSE)
+
+# D. Spegnimento dei 12 core e liberazione della RAM
+stopCluster(cl)
+gc()
+
+print(">>> Normalizzazione completata con successo! I 12 core sono stati spenti.")
 
 
 # ------------------------------------------------------------------------------
@@ -386,9 +413,9 @@ portfolio$Name_Normalized <- sapply(clean_names, match_names, name_list = unique
 top_holdings_data <- portfolio %>%
   # Escludiamo i valori mancanti, scritte vuote o righe di liquidità/derivati
   filter(!is.na(Name_Normalized) & Effective_Weight > 0) %>%
-  filter(!Name_Normalized %in% c("-", "--", "unknown", "n/d", "liquidità e/o derivati")) %>%
+  filter(!tolower(Name_Normalized) %in% c("-", "--", "unknown", "n/d", "liquidità e/o derivati", "liquidita")) %>%
   group_by(Name_Normalized) %>%
-  summarise(total_weight = sum(Effective_Weight, na.rm = TRUE)) %>%
+  summarise(total_weight = sum(Effective_Weight, na.rm = TRUE), .groups = 'drop') %>%
   arrange(desc(total_weight)) %>%
   slice_head(n = 15) %>%
   # Trasformiamo la prima lettera in maiuscola per estetica nel grafico
@@ -404,7 +431,6 @@ plot4 <- ggplot(top_holdings_data, aes(x = Name_Normalized, y = total_weight, fi
   coord_flip() +
   labs(
     title = "Top 15 Titoli Azionari per Peso Effettivo",
-    #subtitle = "Pesi aggregati e normalizzati su tutti gli ETF in portafoglio",
     x = "Azienda",
     y = "Peso Reale nel Portafoglio %"
   ) +
@@ -416,13 +442,13 @@ plot4 <- ggplot(top_holdings_data, aes(x = Name_Normalized, y = total_weight, fi
 print(plot4)
 
 
-
 # ------------------------------------------------------------------------------
-# GRAFICO 5: ANALISI ABC (Curva di Concentrazione)
+# GRAFICO 5: ANALISI ABC (Curva di Concentrazione - Filtri Allineati)
 # ------------------------------------------------------------------------------
-# 1. Preparazione dei dati per la curva ABC
+# 1. Preparazione dei dati per la curva ABC (stessi filtri esatti del Treemap)
 abc_data <- portfolio %>%
   filter(!is.na(Name_Normalized) & Effective_Weight > 0) %>%
+  filter(!tolower(Name_Normalized) %in% c("-", "--", "unknown", "n/d", "liquidità e/o derivati", "liquidita")) %>%
   group_by(Name_Normalized) %>%
   summarise(total = sum(Effective_Weight, na.rm = TRUE), .groups = 'drop') %>%
   arrange(desc(total)) %>%
@@ -437,28 +463,21 @@ n_titoli_totali <- nrow(abc_data)
 pct_80_point <- abc_data %>% filter(cum_sum >= 0.80) %>% slice_head(n = 1)
 titoli_per_80pct <- round(pct_80_point$rank_pct * n_titoli_totali)
 
-# 3. Costruzione del grafico avanzato e accattivante
+# 3. Costruzione del grafico avanzato
 plot5 <- ggplot(abc_data, aes(x = rank_pct, y = cum_sum)) +
-  # Area sotto la curva con un colore azzurro/carta da zucchero semi-trasparente
   geom_area(fill = "#4A90E2", alpha = 0.15) +
+  geom_line(linewidth = 1.5, color = "#1F4E79") +
+  geom_hline(yintercept = 0.8, linetype = "dashed", color = "#E74C3C", linewidth = 0.8) +
+  geom_vline(xintercept = pct_80_point$rank_pct, linetype = "dashed", color = "#E74C3C", linewidth = 0.8) +
   
-  # Linea della curva ABC più spessa e definita
-  geom_line(size = 1.5, color = "#1F4E79") +
-  
-  # Linee tratteggiate di intersezione per il punto dell'80%
-  geom_hline(yintercept = 0.8, linetype = "dashed", color = "#E74C3C", size = 0.8) +
-  geom_vline(xintercept = pct_80_point$rank_pct, linetype = "dashed", color = "#E74C3C", size = 0.8) +
-  
-  # Testo descrittivo del punto di intersezione (80% del peso)
   annotate("label", 
            x = pct_80_point$rank_pct + 0.02, 
            y = 0.75, 
-           label = paste0("80% della concetrazione è fatta con:\n", 
+           label = paste0("80% della concentrazione è fatta con:\n", 
                           percent(pct_80_point$rank_pct, accuracy = 0.1), 
                           " dei titoli (", titoli_per_80pct, " su ", n_titoli_totali, ")"),
            color = "#B22222", fontface = "bold", size = 3.5, hjust = 0, fill = "white", label.size = 0.5) +
   
-  # Box informativo in basso a destra per evidenziare la DIVERSIFICAZIONE
   annotate("label", 
            x = 0.55, 
            y = 0.25, 
@@ -466,13 +485,11 @@ plot5 <- ggplot(abc_data, aes(x = rank_pct, y = cum_sum)) +
                           "▪️ ETF totali in lista: ", n_etf, "\n",
                           "▪️ Aziende uniche : ", n_titoli_totali, "\n",
                           "▪️ Il restante 20% del peso è distribuito\n    su  ", (n_titoli_totali - titoli_per_80pct), " aziende diverse."),
-           color = "#2C3E50", fontface = "plain", size = 4, hjust = 0, fill = "#F8F9FA", color = "#BDC3C7", label.padding = unit(0.5, "lines")) +
+           color = "#2C3E50", fontface = "plain", size = 4, hjust = 0, fill = "#F8F9FA", label.padding = unit(0.5, "lines")) +
   
-  # Formattazione degli assi in percentuali
   scale_x_continuous(labels = percent, expand = c(0.01, 0.01)) +
   scale_y_continuous(labels = percent, expand = c(0.01, 0.01), limits = c(0, 1.02)) +
   
-  # Etichette, Titolo e Sottotitolo dinamico
   labs(
     title = "Analisi ABC & Grado di Diversificazione Globale",
     subtitle = paste("Look-Through su", n_etf, "ETF azionari per un totale di", n_titoli_totali, "titoli unici in portafoglio"),
@@ -480,7 +497,6 @@ plot5 <- ggplot(abc_data, aes(x = rank_pct, y = cum_sum)) +
     y = "Percentuale Cumulata del Peso del Portafoglio"
   ) +
   
-  # Restyling del tema grafico per renderlo moderno e pulito
   theme_minimal(base_size = 12) +
   theme(
     plot.title = element_text(face = "bold", size = 15, color = "#1F4E79"),
@@ -492,6 +508,59 @@ plot5 <- ggplot(abc_data, aes(x = rank_pct, y = cum_sum)) +
   )
 
 print(plot5)
+
+
+# ------------------------------------------------------------------------------
+# GRAFICO 6: TREEMAP TOP 100 TITOLI CON PESO TOTALE DINAMICO
+# ------------------------------------------------------------------------------
+
+# 1. PREPARAZIONE DEI DATI: Raggruppiamo, ordiniamo ed estraiamo i Top 100
+top100_treemap_data <- portfolio %>%
+  filter(!is.na(Name_Normalized) & Effective_Weight > 0) %>%
+  filter(!tolower(Name_Normalized) %in% c("-", "--", "unknown", "n/d", "liquidità e/o derivati", "liquidita")) %>%
+  group_by(Name_Normalized) %>%
+  summarise(
+    Peso_Totale = sum(Effective_Weight, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  arrange(desc(Peso_Totale)) %>%
+  slice_head(n = 100) %>%
+  mutate(
+    Nome_Pulito = str_to_title(str_replace_all(Name_Normalized, "_", " ")),
+    Etichetta = paste0(Nome_Pulito, "\n", scales::percent(Peso_Totale, accuracy = 0.01))
+  )
+
+# 2. CALCOLO DINAMICO DEL PESO CUMULATO DEI PRIMI 100 TITOLI
+somma_peso_top100 <- sum(top100_treemap_data$Peso_Totale, na.rm = TRUE)
+peso_totale_testo <- scales::percent(somma_peso_top100, accuracy = 0.1)
+
+# 3. COSTRUZIONE DEL GRAFICO TREEMAP
+plot6 <- ggplot(top100_treemap_data, aes(area = Peso_Totale, fill = Peso_Totale, label = Etichetta)) +
+  geom_treemap(color = "white", linewidth = 0.5) +
+  geom_treemap_text(
+    colour = "white",
+    place = "centre",
+    grow = FALSE,
+    reflow = TRUE,
+    fontface = "bold",
+    size = 9
+  ) +
+  scale_fill_viridis_c(option = "mako", direction = -1) +
+  labs(
+    title = paste0("Top 100 Titoli in Portafoglio - Peso Totale: ", peso_totale_testo),
+    subtitle = "Mappa a quadrati proporzionale al peso effettivo delle prime 100 aziende"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14, color = "#1F4E79"),
+    plot.subtitle = element_text(face = "italic", size = 10, color = "#555555"),
+    legend.position = "none"
+  )
+
+print(plot6)
+
+
+
 
 # ##############################################################################
 # I. TABELLA RIASSUNTIVA: COMPOSIZIONE DEL PORTAFOGLIO AZIONARIO
@@ -519,7 +588,7 @@ library(gridExtra)
 library(grid)
 
 # 1. Definiamo dove salvare il PDF finale
-pdf_output_path <- "C:/Users/alber/Downloads/ETF/carousel_linkedin.pdf"
+pdf_output_path <- "D:/Users/F29332B/Downloads/ETF/carousel_linkedin.pdf"
 
 # 2. Apriamo il "dispositivo" PDF impostando dimensioni quadrate (10x10 pollici)
 # Questo creerà il formato 1:1 perfetto per il feed di LinkedIn
