@@ -1,5 +1,5 @@
 # ##############################################################################
-# Script_4_Benchmark.R - Confronto Portafoglio vs VWCE (Senza Warning/Errori)
+# Script_4_Benchmark.R - Confronto Portafoglio vs VWCE & Esportazione PDF
 # ##############################################################################
 
 # A. LIBRERIE NECESSARIE -------------------------------------------------------
@@ -18,16 +18,12 @@ folder_path <- "D:/Users/F29332B/Downloads/ETF"
 vwce_file_name <- "VANGUARD_ALL_WORLD.xlsx" 
 vwce_full_path <- file.path(folder_path, vwce_file_name)
 
-# ##############################################################################
-# C. CARICAMENTO E STANDARDIZZAZIONE PORTAFOGLIO MERCATO (VWCE)
-# ##############################################################################
-
 print(paste(">>> Caricamento file di mercato da:", vwce_full_path))
 
 portfoglio_mercato <- readxl::read_excel(vwce_full_path)
 colnames(portfoglio_mercato) <- str_trim(colnames(portfoglio_mercato))
 
-# 1. Conversione del peso numerico (da % testo a numero decimale)
+# 1. Conversione del peso numerico
 portfoglio_mercato <- portfoglio_mercato %>%
   mutate(
     Effective_Weight_Num = str_remove_all(as.character(Effective_Weight), "%"),
@@ -36,32 +32,7 @@ portfoglio_mercato <- portfoglio_mercato %>%
   ) %>%
   select(-Effective_Weight_Num)
 
-# 2. Standardizzazione dei Settori (Industry): dall'Inglese all'Italiano
-portfoglio_mercato <- portfoglio_mercato %>%
-  mutate(
-    # Pulisce eventuali spazi bianchi ai bordi del testo
-    Industry = str_trim(as.character(Industry)),
-    
-    # Mappatura dei settori in lingua italiana
-    Industry = case_when(
-      Industry %in% c("Technology", "IT", "Information Technology") ~ "Tecnologia",
-      Industry %in% c("Financials", "Financial Services", "Financial Other", "Finanza") ~ "Finanza",
-      Industry %in% c("Health Care", "Healthcare", "Salute") ~ "Salute",
-      Industry %in% c("Telecommunications", "Communication Services", "Communication", "Comunicazione") ~ "Comunicazione",
-      Industry %in% c("Consumer Discretionary", "Consumer Cyclical", "Consumi Discrezionali") ~ "Consumi Discrezionali",
-      Industry %in% c("Consumer Staples", "Consumer Defensive", "Consumer Non-Cyclical", "Generi di largo consumo") ~ "Beni di prima necessità",
-      Industry %in% c("Industrials", "Industrial Other", "Basic Industry", "Industriali") ~ "Industriali",
-      Industry %in% c("Basic Materials", "Materials", "Materiali") ~ "Materiali",
-      Industry %in% c("Energy", "Energia") ~ "Energia",
-      Industry %in% c("Utilities", "Utility Other", "Servizi di pubblica utilità") ~ "Utilities",
-      Industry %in% c("Real Estate", "Immobiliare") ~ "Immobiliare",
-      Industry %in% c("Cash", "Liquidity", "Derivatives", "Liquidità e/o derivati") ~ "Liquidità e/o derivati",
-      is.na(Industry) | Industry %in% c("-", "--", "unknown", "N/D", "sconosciuta") ~ "Ignoto",
-      TRUE ~ Industry # Mantiene inalterati eventuali settori già in italiano
-    )
-  )
-
-# 3. Standardizzazione dei Paesi (ISO -> Italiano)
+# 2. Standardizzazione Nomi Paesi (ISO -> Italiano)
 portfoglio_mercato <- portfoglio_mercato %>%
   mutate(Country = case_when(
     Country %in% c("US", "USA", "United States") ~ "Stati Uniti",
@@ -87,7 +58,28 @@ portfoglio_mercato <- portfoglio_mercato %>%
     TRUE ~ Country
   ))
 
-print(">>> Traduzione e pulizia dei Settori (Industry) completata con successo!")
+# 3. Standardizzazione dei Settori (Inglese -> Italiano)
+portfoglio_mercato <- portfoglio_mercato %>%
+  mutate(
+    Industry = str_trim(as.character(Industry)),
+    Industry = case_when(
+      Industry %in% c("Technology", "IT", "Information Technology") ~ "Tecnologia",
+      Industry %in% c("Financials", "Financial Services", "Financial Other", "Finanza") ~ "Finanza",
+      Industry %in% c("Health Care", "Healthcare", "Salute") ~ "Salute",
+      Industry %in% c("Telecommunications", "Communication Services", "Communication", "Comunicazione") ~ "Comunicazione",
+      Industry %in% c("Consumer Discretionary", "Consumer Cyclical", "Consumi Discrezionali") ~ "Consumi Discrezionali",
+      Industry %in% c("Consumer Staples", "Consumer Defensive", "Consumer Non-Cyclical", "Generi di largo consumo") ~ "Beni di prima necessità",
+      Industry %in% c("Industrials", "Industrial Other", "Basic Industry", "Industriali") ~ "Industriali",
+      Industry %in% c("Basic Materials", "Materials", "Materiali") ~ "Materiali",
+      Industry %in% c("Energy", "Energia") ~ "Energia",
+      Industry %in% c("Utilities", "Utility Other", "Servizi di pubblica utilità") ~ "Utilities",
+      Industry %in% c("Real Estate", "Immobiliare") ~ "Immobiliare",
+      Industry %in% c("Cash", "Liquidity", "Derivatives", "Liquidità e/o derivati") ~ "Liquidità e/o derivati",
+      is.na(Industry) | Industry %in% c("-", "--", "unknown", "N/D", "sconosciuta") ~ "Ignoto",
+      TRUE ~ Industry
+    )
+  )
+
 
 # C. PREPARAZIONE DATASET AGGREGATI (TOP 100) ----------------------------------
 
@@ -125,30 +117,33 @@ mkt_top100 <- portfoglio_mercato %>%
     Etichetta = paste0(Nome_Pulito, "\n", scales::percent(Peso_Totale, accuracy = 0.01))
   )
 
+# ##############################################################################
+# D. PALETTE COLORI VIVACI, DISTINTE E AD ALTO CONTRASTO
+# ##############################################################################
 
-# D. GENERAZIONE PALETTE COLORI DINAMICHE ED ESTESE ----------------------------
-
-# 1. Palette Unificata per i Paesi
+# 1. Palette per i Paesi (Colori saturi e ben visibili)
 tutti_i_paesi <- sort(unique(c(ptf_top100$Country, mkt_top100$Country)))
-palette_paesi <- colorRampPalette(RColorBrewer::brewer.pal(min(length(tutti_i_paesi), 12), "Paired"))(length(tutti_i_paesi))
+base_col_paesi <- c("#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD", 
+                    "#8C564B", "#E377C2", "#17BECF", "#BCBD22", "#31A354")
+palette_paesi <- colorRampPalette(base_col_paesi)(length(tutti_i_paesi))
 colori_paesi_unificati <- setNames(palette_paesi, tutti_i_paesi)
 
-# 2. Palette Unificata per i Settori
+# 2. Palette per i Settori (Colori vivaci distinti per evitare confusioni)
 tutti_i_settori <- sort(unique(c(ptf_top100$Industry, mkt_top100$Industry)))
-palette_settori <- colorRampPalette(RColorBrewer::brewer.pal(min(length(tutti_i_settori), 12), "Set3"))(length(tutti_i_settori))
+base_col_settori <- c("#2E86AB", "#A23B72", "#F18F01", "#C73E1D", "#3B1F2B", 
+                      "#48A9A6", "#E63946", "#457B9D", "#2A9D8F", "#E9C46A")
+palette_settori <- colorRampPalette(base_col_settori)(length(tutti_i_settori))
 colori_settori_unificati <- setNames(palette_settori, tutti_i_settori)
 
 
 # ##############################################################################
-# E. GENERAZIONE DEI GRAFICI AFFIANCATI (3 COPPIE)
+# E. GENERAZIONE DEI GRAFICI AFFIANCATI (CON LEGENDE UNIFICATE E TITOLI CHIARI)
 # ##############################################################################
 
 # ------------------------------------------------------------------------------
-# COPPIA 1: CONFRONTO CURVA ABC (Con evidenza dei numeri assoluti)
+# 1. COPPIA ABC: CONFRONTO CONCENTRAZIONE TITOLI
 # ------------------------------------------------------------------------------
-
 crea_grafico_abc <- function(df, titolo_portafoglio) {
-  # 1. Preparazione e aggregazione dei dati ordinati
   data_abc <- df %>%
     filter(!is.na(Name_Normalized) & Effective_Weight > 0) %>%
     filter(!tolower(Name_Normalized) %in% c("-", "--", "unknown", "n/d", "liquidità e/o derivati", "liquidita")) %>%
@@ -157,85 +152,59 @@ crea_grafico_abc <- function(df, titolo_portafoglio) {
     arrange(desc(Peso_Totale)) %>%
     mutate(
       cum_sum = cumsum(Peso_Totale), 
-      rank_num = row_number(),        # Conteggio numerico assoluto (1, 2, 3...)
-      rank_pct = rank_num / n()       # Percentuale relativa (0% -> 100%)
+      rank_num = row_number(),
+      rank_pct = rank_num / n()
     )
   
-  # 2. CALCOLO DELLE METRICHE ASSOLUTE
   n_titoli_totali <- nrow(data_abc)
   pct_80 <- data_abc %>% filter(cum_sum >= 0.80) %>% slice_head(n = 1)
   titoli_80_pct <- pct_80$rank_num
   
-  # Creiamo la stringa di testo per la casella informativa
   testo_box <- paste0(
     "80% del peso ottenuto con:\n",
     format(titoli_80_pct, big.mark = "."), " titoli su ", format(n_titoli_totali, big.mark = "."), "\n",
     "(pari al ", percent(pct_80$rank_pct, accuracy = 0.1), " dei titoli totali)"
   )
   
-  # 3. Costruzione del grafico con le etichette esplicative
   ggplot(data_abc, aes(x = rank_pct, y = cum_sum)) +
-    # Area azzurra sotto la curva
     geom_area(fill = "#4A90E2", alpha = 0.2) +
-    
-    # Linea della curva ABC
     geom_line(linewidth = 1.2, color = "#1F4E79") +
-    
-    # Retta orizzontale e verticale rossi tratteggiati
     geom_hline(yintercept = 0.8, linetype = "dashed", color = "#E74C3C", linewidth = 0.8) +
     geom_vline(xintercept = pct_80$rank_pct, linetype = "dashed", color = "#E74C3C", linewidth = 0.8) +
-    
-    # BOX INFORMATIVO CON I NUMERI REALI ASSOLUTI
-    annotate(
-      "label", 
-      x = pct_80$rank_pct + 0.03, 
-      y = 0.60, 
-      label = testo_box, 
-      color = "#B22222", 
-      fontface = "bold", 
-      size = 3.2, 
-      hjust = 0, 
-      fill = "white", 
-      label.size = 0.4
-    ) +
-    
-    # Formattazione assi e zoom sicuro
+    annotate("label", x = pct_80$rank_pct + 0.03, y = 0.60, label = testo_box, 
+             color = "#B22222", fontface = "bold", size = 3, hjust = 0, fill = "white", label.size = 0.4) +
     scale_x_continuous(labels = percent) +
     scale_y_continuous(labels = percent) +
     coord_cartesian(ylim = c(0, 1.02)) +
-    
-    # Titolo e Sottotitolo che evidenziano la dimensione totale
     labs(
-      title = paste("Analisi ABC -", titolo_portafoglio),
-      subtitle = paste0("📌 Totale aziende uniche in portafoglio: ", format(n_titoli_totali, big.mark = ".")),
-      x = "% Titoli Cumulati", 
-      y = "% Peso Cumulato"
+      title = titolo_portafoglio,
+      subtitle = paste0("📌 Aziende uniche totali: ", format(n_titoli_totali, big.mark = ".")),
+      x = "% Titoli Cumulati", y = "% Peso Cumulato"
     ) +
-    
-    # Tema grafico pulito
     theme_minimal() +
     theme(
-      plot.title = element_text(face = "bold", size = 12, color = "#1F4E79"),
-      plot.subtitle = element_text(face = "bold", size = 10, color = "#B22222"),
-      axis.title = element_text(size = 9, face = "bold")
+      plot.title = element_text(face = "bold", size = 11, color = "#1F4E79"),
+      plot.subtitle = element_text(face = "bold", size = 9, color = "#B22222"),
+      axis.title = element_text(size = 8.5, face = "bold")
     )
 }
 
-# Generiamo i due grafici con le nuove metriche
-abc_mio_ptf <- crea_grafico_abc(portfolio, "Mio Portafoglio")
-abc_mercato <- crea_grafico_abc(portfoglio_mercato, "Mercato (VWCE)")
+abc_mio_ptf <- crea_grafico_abc(portfolio, "Mio Portafoglio (Allocazione Personale)")
+abc_mercato <- crea_grafico_abc(portfoglio_mercato, "Mercato Benchmark (VWCE)")
 
-# Affianchiamo i due grafici per il confronto
-coppia_1_abc <- abc_mio_ptf + abc_mercato
-
-# Stampiamo a schermo
-print(coppia_1_abc)
-
-
+coppia_1_abc <- (abc_mio_ptf + abc_mercato) + 
+  plot_annotation(
+    title = "ANALISI ABC DI CONCENTRAZIONE - CONFRONTO DIVERSIFICAZIONE",
+    subtitle = "Mio Portafoglio vs Benchmark di Mercato (VWCE) - Curva di Distribuzione del Peso",
+    theme = theme(
+      plot.title = element_text(face = "bold", size = 14, color = "#1F4E79"),
+      plot.subtitle = element_text(face = "italic", size = 10, color = "#555555")
+    )
+  )
 
 
 # ------------------------------------------------------------------------------
-# COPPIA 2: TREEMAP PER SETTORE (Industry)
+# 2. COPPIA TREEMAP SETTORI (INDUSTRY) - CON LEGENDA UNIFICATA E COMPATTA
 # ------------------------------------------------------------------------------
 crea_treemap_industry <- function(df_top100, titolo) {
   tot_weight <- scales::percent(sum(df_top100$Peso_Totale), accuracy = 0.1)
@@ -243,25 +212,40 @@ crea_treemap_industry <- function(df_top100, titolo) {
   ggplot(df_top100, aes(area = Peso_Totale, fill = Industry, label = Etichetta, subgroup = Industry)) +
     geom_treemap(color = "white") +
     geom_treemap_subgroup_border(color = "black") +
-    geom_treemap_text(colour = "white", place = "centre", grow = FALSE, reflow = TRUE, size = 7) +
-    scale_fill_manual(values = colori_settori_unificati, name = "Settore") +
-    labs(title = paste(titolo, "- Top 100 (Peso:", tot_weight, ")")) +
+    geom_treemap_text(colour = "white", place = "centre", grow = FALSE, reflow = TRUE, size = 6.5) +
+    scale_fill_manual(values = colori_settori_unificati, name = "Settore Industriale:") +
+    labs(title = paste(titolo, "- Top 100 Titoli (Peso Complessivo:", tot_weight, ")")) +
     theme_minimal() +
     theme(
-      legend.position = "bottom", 
-      plot.title = element_text(face = "bold", size = 11)
+      plot.title = element_text(face = "bold", size = 10.5, color = "#1F4E79")
     )
 }
 
 tree_ind_ptf <- crea_treemap_industry(ptf_top100, "Mio Portafoglio")
 tree_ind_mkt <- crea_treemap_industry(mkt_top100, "Mercato (VWCE)")
 
-coppia_2_industry <- tree_ind_ptf + tree_ind_mkt
-print(coppia_2_industry)
+# AFFIANCAMENTO + FONDIAMO LE LEGENDE IN UNA SOLA PICCOLA IN BASSO
+coppia_2_industry <- (tree_ind_ptf + tree_ind_mkt) + 
+  plot_layout(guides = "collect") + 
+  plot_annotation(
+    title = "RIPARTIZIONE PER SETTORE INDUSTRIALE (INDUSTRY) - TOP 100 TITOLI",
+    subtitle = "Confronto dell'allocazione settoriale tra il Mio Portafoglio e il Benchmark di Mercato (VWCE)",
+    theme = theme(
+      plot.title = element_text(face = "bold", size = 14, color = "#1F4E79"),
+      plot.subtitle = element_text(face = "italic", size = 10, color = "#555555")
+    )
+  ) & 
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold", size = 8.5),
+    legend.text = element_text(size = 7.5),             # TESTO LEGENDA RIDOTTO
+    legend.key.size = unit(0.35, "cm"),                  # QUADRATINI LEGENDA PICCOLI
+    legend.margin = margin(t = 2, b = 2)
+  )
 
 
 # ------------------------------------------------------------------------------
-# COPPIA 3: TREEMAP PER PAESE (Country)
+# 3. COPPIA TREEMAP PAESI (COUNTRY) - CON LEGENDA UNIFICATA E COMPATTA
 # ------------------------------------------------------------------------------
 crea_treemap_country <- function(df_top100, titolo) {
   tot_weight <- scales::percent(sum(df_top100$Peso_Totale), accuracy = 0.1)
@@ -269,22 +253,57 @@ crea_treemap_country <- function(df_top100, titolo) {
   ggplot(df_top100, aes(area = Peso_Totale, fill = Country, label = Etichetta, subgroup = Country)) +
     geom_treemap(color = "white") +
     geom_treemap_subgroup_border(color = "black") +
-    geom_treemap_text(colour = "white", place = "centre", grow = FALSE, reflow = TRUE, size = 7) +
-    scale_fill_manual(values = colori_paesi_unificati, name = "Paese") +
-    labs(title = paste(titolo, "- Top 100 (Peso:", tot_weight, ")")) +
+    geom_treemap_text(colour = "white", place = "centre", grow = FALSE, reflow = TRUE, size = 6.5) +
+    scale_fill_manual(values = colori_paesi_unificati, name = "Paese Geografico:") +
+    labs(title = paste(titolo, "- Top 100 Titoli (Peso Complessivo:", tot_weight, ")")) +
     theme_minimal() +
     theme(
-      legend.position = "bottom", 
-      plot.title = element_text(face = "bold", size = 11)
+      plot.title = element_text(face = "bold", size = 10.5, color = "#1F4E79")
     )
 }
 
 tree_cnt_ptf <- crea_treemap_country(ptf_top100, "Mio Portafoglio")
 tree_cnt_mkt <- crea_treemap_country(mkt_top100, "Mercato (VWCE)")
 
-coppia_3_country <- tree_cnt_ptf + tree_cnt_mkt
+# AFFIANCAMENTO + FONDIAMO LE LEGENDE IN UNA SOLA PICCOLA IN BASSO
+coppia_3_country <- (tree_cnt_ptf + tree_cnt_mkt) + 
+  plot_layout(guides = "collect") + 
+  plot_annotation(
+    title = "ESPOSIZIONE GEOGRAFICA PER PAESE (COUNTRY) - TOP 100 TITOLI",
+    subtitle = "Confronto della ripartizione geografica tra il Mio Portafoglio e il Benchmark di Mercato (VWCE)",
+    theme = theme(
+      plot.title = element_text(face = "bold", size = 14, color = "#1F4E79"),
+      plot.subtitle = element_text(face = "italic", size = 10, color = "#555555")
+    )
+  ) & 
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold", size = 8.5),
+    legend.text = element_text(size = 7.5),             # TESTO LEGENDA RIDOTTO
+    legend.key.size = unit(0.35, "cm"),                  # QUADRATINI LEGENDA PICCOLI
+    legend.margin = margin(t = 2, b = 2)
+  )
+
+
+# ##############################################################################
+# F. ESPORTAZIONE CAROUSEL BENCHMARK IN PDF (FORMATO ORIZZONTALE 12x7)
+# ##############################################################################
+
+pdf_benchmark_path <- "D:/Users/F29332B/Downloads/ETF/carousel_benchmark_linkedin.pdf"
+
+# Apriamo il PDF con proporzioni ampie (12x7 pollici) per ospitare comodamente i due grafici
+pdf(file = pdf_benchmark_path, width = 12, height = 7)
+
+# Slide 1: Concentrazione ABC
+print(coppia_1_abc)
+
+# Slide 2: Treemap Settori Industriali
+print(coppia_2_industry)
+
+# Slide 3: Treemap Paesi Geografici
 print(coppia_3_country)
 
-portfolio %>%
-  group_by (Industry) %>%
-  summarize (num = n())
+# Chiudiamo e salviamo il file PDF
+dev.off()
+
+print(paste("🔥 Carousel Benchmark aggiornato con successo! Trovi il PDF qui:", pdf_benchmark_path))
